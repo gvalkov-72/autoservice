@@ -141,6 +141,28 @@ class WorkOrderController extends Controller
         return view('admin.work-orders.show', compact('workOrder'));
     }
 
+        /**
+     * Експортира ремонтна поръчка в различни формати (PDF, Excel, CSV).
+     */
+    public function export(WorkOrder $workOrder, string $type)
+    {
+        try {
+            if ($type === 'pdf') {
+                // Вече имаме маршрут 'admin.work-orders.pdf', затова пренасочваме към него
+                return redirect()->route('admin.work-orders.pdf', $workOrder);
+            } 
+            elseif (in_array($type, ['excel', 'csv'])) {
+                // Засега само демонстрация - в бъще може да се имплементира
+                return redirect()->back()->with('warning', 'Експортът в ' . strtoupper($type) . ' формат ще бъде достъпен скоро.');
+            }
+            
+            return redirect()->back()->with('error', 'Невалиден тип за експорт.');
+            
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Грешка при експорт: ' . $e->getMessage());
+        }
+    }
+
     public function edit(WorkOrder $workOrder)
     {
         $customers = Customer::pluck('name', 'id');

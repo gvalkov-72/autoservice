@@ -20,10 +20,10 @@
                     <a class="dropdown-item" href="{{ route('admin.work-orders.pdf', $workOrder) }}" target="_blank">
                         <i class="fas fa-file-pdf mr-2"></i> PDF
                     </a>
-                    <a class="dropdown-item" href="#">
+                    <a class="dropdown-item" href="{{ route('admin.work-orders.export', ['workOrder' => $workOrder->id, 'type' => 'excel']) }}">
                         <i class="fas fa-file-excel mr-2"></i> Excel
                     </a>
-                    <a class="dropdown-item" href="#">
+                    <a class="dropdown-item" href="{{ route('admin.work-orders.export', ['workOrder' => $workOrder->id, 'type' => 'csv']) }}">
                         <i class="fas fa-file-csv mr-2"></i> CSV
                     </a>
                     <div class="dropdown-divider"></div>
@@ -61,24 +61,24 @@
                             <dl class="row mb-0">
                                 <dt class="col-sm-5">Номер:</dt>
                                 <dd class="col-sm-7"><strong>{{ $workOrder->number }}</strong></dd>
-                                
+
                                 <dt class="col-sm-5">Статус:</dt>
                                 <dd class="col-sm-7">
                                     <span class="badge badge-{{ $workOrder->status_color }}">
                                         {{ $workOrder->status_text }}
                                     </span>
                                 </dd>
-                                
+
                                 <dt class="col-sm-5">Дата приемане:</dt>
                                 <dd class="col-sm-7">
                                     {{ $workOrder->received_at ? $workOrder->received_at->format('d.m.Y H:i') : '-' }}
                                 </dd>
-                                
+
                                 <dt class="col-sm-5">Пробег (км):</dt>
                                 <dd class="col-sm-7">
                                     {{ $workOrder->km_on_receive ? number_format($workOrder->km_on_receive, 0, ',', ' ') : '-' }}
                                 </dd>
-                                
+
                                 <dt class="col-sm-5">Назначен на:</dt>
                                 <dd class="col-sm-7">
                                     {{ $workOrder->mechanic->name ?? 'Не е назначен' }}
@@ -91,17 +91,17 @@
                                 <dd class="col-sm-7">
                                     {{ $workOrder->created_at->format('d.m.Y H:i') }}
                                 </dd>
-                                
+
                                 <dt class="col-sm-5">Последна промяна:</dt>
                                 <dd class="col-sm-7">
                                     {{ $workOrder->updated_at->format('d.m.Y H:i') }}
                                 </dd>
-                                
+
                                 <dt class="col-sm-5">Създадена от:</dt>
                                 <dd class="col-sm-7">
                                     {{ $workOrder->creator->name ?? 'Система' }}
                                 </dd>
-                                
+
                                 @if($workOrder->estimated_completion)
                                 <dt class="col-sm-5">Очаквана дата:</dt>
                                 <dd class="col-sm-7">
@@ -111,7 +111,7 @@
                             </dl>
                         </div>
                     </div>
-                    
+
                     @if($workOrder->notes)
                     <div class="row mt-3">
                         <div class="col-12">
@@ -124,7 +124,7 @@
                     @endif
                 </div>
             </div>
-            
+
             <!-- Карта с клиент и автомобил -->
             <div class="card card-success card-outline mt-3">
                 <div class="card-header">
@@ -160,7 +160,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Информация за автомобила -->
                         <div class="col-md-6">
                             <div class="info-box bg-light">
@@ -188,7 +188,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Карта с позиции в поръчката -->
             <div class="card card-info card-outline mt-3">
                 <div class="card-header">
@@ -255,7 +255,6 @@
                                     </td>
                                 </tr>
                                 @endforeach
-                                
                                 @if($workOrder->items->isEmpty())
                                 <tr>
                                     <td colspan="6" class="text-center text-muted py-3">
@@ -264,6 +263,22 @@
                                 </tr>
                                 @endif
                             </tbody>
+                            <tfoot class="thead-light">
+                                <tr>
+                                    <th colspan="3" class="text-right">Общо:</th>
+                                    <th class="text-right">
+                                        {{ number_format($workOrder->total_without_vat, 2, ',', ' ') }} лв.
+                                    </th>
+                                    <th class="text-center"></th>
+                                    <th class="text-right">
+                                        <strong>{{ number_format($workOrder->total, 2, ',', ' ') }} лв.</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            ДДС: {{ number_format($workOrder->vat_amount, 2, ',', ' ') }} лв.
+                                        </small>
+                                    </th>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -280,276 +295,291 @@
                     </h3>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-borderless mb-0">
-                            <tr>
-                                <th class="text-right">Общо без ДДС:</th>
-                                <td class="text-right">
-                                    <span class="font-weight-bold text-primary">
-                                        {{ number_format($workOrder->total_without_vat, 2, ',', ' ') }}
-                                    </span> лв.
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="text-right">ДДС:</th>
-                                <td class="text-right">
-                                    <span class="font-weight-bold text-warning">
-                                        {{ number_format($workOrder->vat_amount, 2, ',', ' ') }}
-                                    </span> лв.
-                                </td>
-                            </tr>
-                            <tr class="border-top">
-                                <th class="text-right font-weight-bold">Общо с ДДС:</th>
-                                <td class="text-right">
-                                    <span class="h4 font-weight-bold text-success">
-                                        {{ number_format($workOrder->total, 2, ',', ' ') }}
-                                    </span> лв.
-                                </td>
-                            </tr>
-                        </table>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="info-box bg-light mb-3">
+                                <span class="info-box-icon bg-warning"><i class="fas fa-file-invoice-dollar"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Обща стойност</span>
+                                    <span class="info-box-number">{{ number_format($workOrder->total, 2, ',', ' ') }} лв.</span>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-warning" style="width: 100%"></div>
+                                    </div>
+                                    <span class="progress-description">
+                                        Без ДДС: {{ number_format($workOrder->total_without_vat, 2, ',', ' ') }} лв.
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="small-box bg-light p-2 border rounded mb-2">
+                                <div class="inner">
+                                    <h4>{{ number_format($workOrder->vat_amount, 2, ',', ' ') }} <small>лв.</small></h4>
+                                    <p>ДДС</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-percentage"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small-box bg-light p-2 border rounded mb-2">
+                                <div class="inner">
+                                    <h4>{{ $workOrder->items->count() }}</h4>
+                                    <p>Позиции</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-list"></i>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Карта с бързи действия -->
-            <div class="card card-default mt-3">
+            <!-- Карта с действия -->
+            <div class="card card-danger card-outline mt-3">
                 <div class="card-header">
                     <h3 class="card-title">
-                        <i class="fas fa-bolt mr-2"></i>Бързи действия
+                        <i class="fas fa-cogs mr-2"></i>Действия
                     </h3>
                 </div>
                 <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{{ route('admin.work-orders.edit', $workOrder) }}" class="btn btn-primary btn-block">
+                    <div class="btn-group-vertical w-100" role="group">
+                        <a href="{{ route('admin.work-orders.edit', $workOrder) }}" class="btn btn-outline-primary btn-lg text-left mb-2">
                             <i class="fas fa-edit mr-2"></i> Редактирай поръчка
                         </a>
                         
-                        <a href="{{ route('admin.work-orders.pdf', $workOrder) }}" target="_blank" class="btn btn-danger btn-block">
+                        <a href="{{ route('admin.work-orders.pdf', $workOrder) }}" target="_blank" class="btn btn-outline-info btn-lg text-left mb-2">
                             <i class="fas fa-file-pdf mr-2"></i> Генерирай PDF
                         </a>
                         
-                        <button type="button" class="btn btn-success btn-block" onclick="window.print();">
-                            <i class="fas fa-print mr-2"></i> Принтирай
-                        </button>
-                        
-                        @if($workOrder->status !== 'completed' && $workOrder->status !== 'cancelled')
-                        <form action="{{ route('admin.work-orders.update', $workOrder) }}" method="POST" class="d-inline">
-                            @csrf
-                            @method('PUT')
-                            <input type="hidden" name="status" value="completed">
-                            <button type="submit" class="btn btn-success btn-block" onclick="return confirm('Маркиране на поръчката като завършена?')">
-                                <i class="fas fa-check mr-2"></i> Маркирай като завършена
-                            </button>
-                        </form>
+                        @if(!$workOrder->invoices()->exists())
+                        <a href="{{ route('admin.invoices.create', ['work_order' => $workOrder->id]) }}" class="btn btn-outline-success btn-lg text-left mb-2">
+                            <i class="fas fa-file-invoice mr-2"></i> Създай фактура
+                        </a>
+                        @else
+                        <a href="{{ route('admin.invoices.show', $workOrder->invoices()->first()) }}" class="btn btn-outline-secondary btn-lg text-left mb-2">
+                            <i class="fas fa-eye mr-2"></i> Преглед на фактура
+                        </a>
                         @endif
                         
-                        @if($workOrder->status !== 'cancelled')
-                        <form action="{{ route('admin.work-orders.update', $workOrder) }}" method="POST" class="d-inline">
+                        <form action="{{ route('admin.work-orders.destroy', $workOrder) }}" method="POST" class="w-100 mb-2" onsubmit="return confirm('Сигурни ли сте, че искате да изтриете тази поръчка?');">
                             @csrf
-                            @method('PUT')
-                            <input type="hidden" name="status" value="cancelled">
-                            <button type="submit" class="btn btn-danger btn-block" onclick="return confirm('Отмяна на поръчката?')">
-                                <i class="fas fa-times mr-2"></i> Отмени поръчката
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-outline-danger btn-lg w-100 text-left">
+                                <i class="fas fa-trash mr-2"></i> Изтрий поръчка
                             </button>
                         </form>
-                        @endif
                     </div>
-                </div>
-            </div>
-            
-            <!-- Карта с история -->
-            <div class="card card-secondary card-outline mt-3">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-history mr-2"></i>История
-                    </h3>
-                </div>
-                <div class="card-body p-0">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item">
-                            <i class="fas fa-plus-circle text-success mr-2"></i>
-                            Създадена на
-                            <span class="float-right text-muted">
-                                {{ $workOrder->created_at->format('d.m.Y H:i') }}
-                            </span>
-                        </li>
-                        <li class="list-group-item">
-                            <i class="fas fa-edit text-primary mr-2"></i>
-                            Последна промяна
-                            <span class="float-right text-muted">
-                                {{ $workOrder->updated_at->format('d.m.Y H:i') }}
-                            </span>
-                        </li>
-                        @if($workOrder->invoices->count() > 0)
-                        <li class="list-group-item">
-                            <i class="fas fa-file-invoice-dollar text-warning mr-2"></i>
-                            Фактурирана
-                            <span class="float-right text-muted">
-                                {{ $workOrder->invoices->first()->created_at->format('d.m.Y') }}
-                            </span>
-                        </li>
-                        @endif
-                    </ul>
                 </div>
             </div>
         </div>
     </div>
+</div>
 @stop
 
-@push('css')
-    <style>
-        /* Стилове за принтиране */
-        @media print {
-            .no-print, .card-tools, .btn, .dropdown, .content-header {
-                display: none !important;
+@section('css')
+<style>
+    .info-box {
+        min-height: 90px;
+    }
+    .info-box-icon {
+        width: 70px;
+    }
+    .small-box {
+        min-height: 120px;
+    }
+</style>
+@stop
+@section('js')
+<script>
+    $(document).ready(function() {
+        // Инициализиране на tooltips
+        $('[data-toggle="tooltip"]').tooltip();
+        
+        // Инициализиране на popovers
+        $('[data-toggle="popover"]').popover();
+        
+        // Автоматично скриване на алерти след 5 секунди
+        setTimeout(function() {
+            $('.alert:not(.alert-permanent)').fadeOut('slow');
+        }, 5000);
+        
+        // Подсказка за експорт бутоните
+        $('.export-btn').tooltip({
+            title: 'Кликнете за изтегляне',
+            placement: 'top'
+        });
+        
+        // Подтверждение за изтриване на поръчка
+        $('.delete-btn').on('click', function(e) {
+            if (!confirm('Сигурни ли сте, че искате да изтриете тази поръчка? Това действие е необратимо.')) {
+                e.preventDefault();
             }
-            
-            .card {
-                border: 1px solid #ddd !important;
-                box-shadow: none !important;
-            }
-            
-            .card-header {
-                background-color: #f8f9fa !important;
-                color: #000 !important;
-                border-bottom: 1px solid #ddd !important;
-            }
-            
-            body {
-                background-color: #fff !important;
-                color: #000 !important;
-            }
-            
-            .container-fluid {
-                width: 100% !important;
-                max-width: 100% !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            
-            .row {
-                margin: 0 !important;
-            }
-            
-            .col-md-8, .col-md-4 {
-                width: 100% !important;
-                max-width: 100% !important;
-                flex: 0 0 100% !important;
-            }
-            
-            .table {
-                border-collapse: collapse !important;
-                width: 100% !important;
-            }
-            
-            .table th, .table td {
-                border: 1px solid #ddd !important;
-                padding: 8px !important;
-            }
+        });
+        
+        // Функция за принтиране на поръчката
+        window.printWorkOrder = function() {
+            window.print();
+        };
+        
+        // Функция за експорт в PDF
+        window.exportToPDF = function() {
+            window.location.href = "{{ route('admin.work-orders.pdf', $workOrder) }}";
+        };
+        
+        // Функция за експорт в Excel
+        function exportToExcel() {
+            window.location.href = "{{ route('admin.work-orders.export', ['workOrder' => $workOrder->id, 'type' => 'excel']) }}";
         }
         
-        /* Стилове за статуси */
-        .badge-draft { background-color: #6c757d; }
-        .badge-open { background-color: #007bff; }
-        .badge-in_progress { background-color: #17a2b8; }
-        .badge-completed { background-color: #28a745; }
-        .badge-invoiced { background-color: #6610f2; }
-        .badge-closed { background-color: #343a40; }
-        .badge-cancelled { background-color: #dc3545; }
-        
-        /* Подобрения на таблицата */
-        .table-hover tbody tr:hover {
-            background-color: rgba(0, 123, 255, 0.05);
+        // Функция за експорт в CSV
+        function exportToCSV() {
+            window.location.href = "{{ route('admin.work-orders.export', ['workOrder' => $workOrder->id, 'type' => 'csv']) }}";
         }
         
-        .table-striped tbody tr:nth-of-type(odd) {
-            background-color: rgba(0, 0, 0, 0.02);
-        }
+        // Автоматично скриване на dropdown след избор
+        $('.dropdown-menu').on('click', function(e) {
+            e.stopPropagation();
+        });
         
-        /* Стилове за info-box */
-        .info-box {
-            box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.2);
-            border-radius: .25rem;
-            background-color: #fff;
-            display: flex;
-            margin-bottom: 1rem;
-            min-height: 80px;
-            padding: .5rem;
-            position: relative;
-        }
+        // Анимация при кликване на бутони
+        $('.btn').on('click', function() {
+            $(this).blur();
+        });
         
-        .info-box .info-box-icon {
-            border-radius: .25rem;
-            align-items: center;
-            display: flex;
-            font-size: 1.875rem;
-            justify-content: center;
-            text-align: center;
-            width: 70px;
-        }
+        // Проверка за грешки в формата
+        @if($errors->any())
+            $('#errorModal').modal('show');
+        @endif
         
-        .info-box .info-box-content {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            line-height: 1.8;
-            flex: 1;
-            padding: 0 10px;
-        }
-        
-        .info-box .info-box-number {
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
-        
-        /* Стилове за бутони */
-        .btn-block {
-            margin-bottom: 0.5rem;
-        }
-        
-        .dropdown-menu {
-            min-width: 180px;
-        }
-    </style>
-@endpush
-
-@push('js')
-    <script>
-        $(function () {
-            // Инициализация на картените инструменти
-            $('[data-card-widget="collapse"]').click(function() {
-                $(this).closest('.card').toggleClass('collapsed-card');
-            });
-            
-            // Добавяне на функционалност за Excel и CSV експорт
-            $('.dropdown-item').on('click', function(e) {
-                const text = $(this).text().trim();
-                
-                if (text.includes('Excel')) {
-                    e.preventDefault();
-                    exportToExcel();
-                } else if (text.includes('CSV')) {
-                    e.preventDefault();
-                    exportToCSV();
+        // Инициализиране на DataTables за таблицата с позициите (ако е необходимо)
+        @if($workOrder->items->count() > 10)
+            $('.table').DataTable({
+                "paging": true,
+                "lengthChange": true,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "autoWidth": false,
+                "responsive": true,
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Bulgarian.json"
                 }
             });
-            
-            function exportToExcel() {
-                // Тук може да се добави логика за генериране на Excel файл
-                alert('Експорт към Excel ще бъде имплементиран скоро.');
-                // Пример: window.location.href = "{{ route('admin.work-orders.export', ['id' => $workOrder->id, 'type' => 'excel']) }}";
-            }
-            
-            function exportToCSV() {
-                // Тук може да се добави логика за генериране на CSV файл
-                alert('Експорт към CSV ще бъде имплементиран скоро.');
-                // Пример: window.location.href = "{{ route('admin.work-orders.export', ['id' => $workOrder->id, 'type' => 'csv']) }}";
-            }
-            
-            // Автоматично скриване на dropdown след избор
-            $('.dropdown-menu').on('click', function(e) {
-                e.stopPropagation();
-            });
+        @endif
+    });
+    
+    // Функция за копиране на номера на поръчката
+    function copyOrderNumber() {
+        const orderNumber = "{{ $workOrder->number }}";
+        navigator.clipboard.writeText(orderNumber).then(function() {
+            // Показване на съобщение за успех
+            toastr.success('Номерът на поръчката е копиран в клипборда: ' + orderNumber);
+        }, function(err) {
+            // Fallback за стари браузъри
+            const textArea = document.createElement('textarea');
+            textArea.value = orderNumber;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            toastr.success('Номерът на поръчката е копиран в клипборда: ' + orderNumber);
         });
+    }
+    
+    // Функция за споделяне на поръчката
+    function shareWorkOrder() {
+        const url = window.location.href;
+        if (navigator.share) {
+            navigator.share({
+                title: 'Ремонтна поръчка #{{ $workOrder->number }}',
+                text: 'Преглед на ремонтна поръчка #{{ $workOrder->number }} от {{ $workOrder->customer->name }}',
+                url: url
+            }).then(() => {
+                toastr.success('Поръчката е споделена успешно!');
+            }).catch(error => {
+                console.log('Грешка при споделяне:', error);
+                copyToClipboard(url);
+            });
+        } else {
+            copyToClipboard(url);
+        }
+    }
+    
+    // Помощна функция за копиране в клипборд
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            toastr.success('Линкът е копиран в клипборда!');
+        }, function(err) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            toastr.success('Линкът е копиран в клипборда!');
+        });
+    }
+    
+    // Функция за показване на QR код
+    function showQRCode() {
+        const qrCodeUrl = "{{ route('admin.work-orders.show', $workOrder) }}";
+        $('#qrCodeImage').attr('src', 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qrCodeUrl));
+        $('#qrCodeModal').modal('show');
+    }
+    
+    // Функция за изтегляне на QR код
+    function downloadQRCode() {
+        const qrCodeUrl = "{{ route('admin.work-orders.show', $workOrder) }}";
+        const downloadUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=' + encodeURIComponent(qrCodeUrl);
+        window.open(downloadUrl, '_blank');
+    }
+</script>
+
+<!-- Модал за QR код -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" role="dialog" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qrCodeModalLabel">
+                    <i class="fas fa-qrcode mr-2"></i>QR код за поръчка #{{ $workOrder->number }}
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid mb-3">
+                <p class="text-muted small">Сканирайте QR кода за бърз достъп до тази поръчка</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Затвори</button>
+                <button type="button" class="btn btn-primary" onclick="downloadQRCode()">
+                    <i class="fas fa-download mr-2"></i> Изтегли
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toastr съобщения (ако не са включени глобално) -->
+@if(!isset($toastrIncluded))
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script>
+        toastr.options = {
+            "closeButton": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000"
+        };
     </script>
-@endpush
+    @php $toastrIncluded = true; @endphp
+@endif
+@stop

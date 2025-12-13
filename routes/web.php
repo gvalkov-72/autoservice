@@ -4,9 +4,9 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
-|--------------------------------------------------------------------------
+
 | Web Routes
-|--------------------------------------------------------------------------
+
 */
 
 Route::get('/', fn() => redirect()->route('login'));
@@ -34,6 +34,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::resource('services',    \App\Http\Controllers\Admin\ServiceController::class);
     Route::resource('service-categories', \App\Http\Controllers\Admin\ServiceCategoryController::class);
     Route::resource('work-orders', \App\Http\Controllers\Admin\WorkOrderController::class);
+    // ДОБАВЕН МАРШРУТ ЗА ЕКСПОРТ НА WORK ORDERS
+    Route::get('work-orders/{workOrder}/export/{type}', [\App\Http\Controllers\Admin\WorkOrderController::class, 'export'])
+        ->name('work-orders.export');
     Route::resource('invoices',    \App\Http\Controllers\Admin\InvoiceController::class);
 
     /* --- EXPORT-и за Customer --- */
@@ -83,19 +86,19 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         // Търсене на клиенти и автомобили за autocomplete
         Route::get('search/customer-vehicle', [\App\Http\Controllers\Admin\WorkOrderController::class, 'search'])
             ->name('search.customer-vehicle');
-        
+
         // Информация за клиент
         Route::get('customer-info/{customer}', [\App\Http\Controllers\Admin\WorkOrderController::class, 'customerInfo'])
             ->name('customer-info');
-        
+
         // Информация за автомобил
         Route::get('vehicle-info/{vehicle}', [\App\Http\Controllers\Admin\WorkOrderController::class, 'vehicleInfo'])
             ->name('vehicle-info');
-        
+
         // Автомобили на клиент
         Route::get('customer-vehicles/{customer}', [\App\Http\Controllers\Admin\WorkOrderController::class, 'customerVehicles'])
             ->name('customer-vehicles');
-        
+
         // Autocomplete за продукти и услуги
         Route::get('products/autocomplete', [\App\Http\Controllers\Admin\WorkOrderController::class, 'productsAutocomplete'])
             ->name('products.autocomplete');
@@ -109,7 +112,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     /* --- PDF --- */
     Route::get('work-orders/{workOrder}/pdf', [\App\Http\Controllers\Admin\WorkOrderController::class, 'pdf'])
         ->name('work-orders.pdf');
-        
+
     /* --- Търсене за Work Orders (за обратна съвместимост) --- */
     Route::get('work-orders/search', [\App\Http\Controllers\Admin\WorkOrderController::class, 'search'])
         ->name('work-orders.search');
