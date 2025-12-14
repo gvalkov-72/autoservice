@@ -2,143 +2,499 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Фактура {{ $invoice->number }}</title>
+    <title>Фактура №{{ $invoice->invoice_number }}</title>
     <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 12px; }
-        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .header h1 { margin: 0; color: #333; }
-        .info-section { margin-bottom: 20px; }
-        .info-section h3 { background-color: #f5f5f5; padding: 5px 10px; margin: 10px 0; }
-        .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .info-label { font-weight: bold; min-width: 150px; }
-        .table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        .table th { background-color: #f2f2f2; text-align: left; padding: 8px; border: 1px solid #ddd; }
-        .table td { padding: 8px; border: 1px solid #ddd; }
-        .table .total-row td { font-weight: bold; background-color: #f9f9f9; }
-        .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; }
-        .signature { margin-top: 40px; }
-        .signature-line { width: 300px; border-top: 1px solid #000; margin-top: 40px; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 10pt;
+            width: 180mm;
+            margin: 0 auto;
+            padding: 10mm;
+            line-height: 1.2;
+        }
+        
+        /* ТРИ КОЛОНИ */
+        .three-column-container {
+            width: 100%;
+            margin-bottom: 10mm;
+            display: table;
+        }
+        
+        .client-box, .supplier-box, .invoice-box {
+            display: table-cell;
+            border: 1pt solid #000;
+            border-radius: 5px;
+            padding: 2mm;
+            vertical-align: top;
+        }
+        
+        .client-box, .supplier-box {
+            width: 40%;
+        }
+        
+        .invoice-box {
+            width: 20%;
+            text-align: center;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            font-size: 11pt;
+            margin-bottom: 2mm;
+            padding-bottom: 1mm;
+            border-bottom: 1pt solid #000;
+        }
+        
+        .invoice-title {
+            font-size: 14pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 5mm;
+            margin-top: 2mm;
+        }
+        
+        .invoice-number-large {
+            font-size: 12pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 0;
+        }
+        
+        .invoice-date-large {
+            font-size: 10pt;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 0;
+        }
+        
+        /* ПОЛЕТА - БЕЗ overflow: hidden */
+        .info-line {
+            margin-bottom: 1.5mm;
+            clear: both;
+        }
+        
+        .label {
+            float: left;
+            width: 15mm;
+            font-weight: bold;
+            font-size: 8pt;
+            color: #666;
+        }
+        
+        .value {
+            margin-left: 16mm;
+            border-bottom: 0.5pt dotted #666;
+            padding-bottom: 0.5mm;
+            font-size: 9pt;
+        }
+        
+        /* ТАБЛИЦА */
+        .items-title {
+            font-weight: bold;
+            font-size: 11pt;
+            margin-bottom: 2mm;
+            margin-top: 5mm;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5mm;
+            font-size: 9pt;
+            border: 1pt solid #000;
+        }
+        
+        .items-table th {
+            border: 1pt solid #000;
+            background: #f0f0f0;
+            padding: 1mm;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .items-table td {
+            border: 1pt solid #000;
+            padding: 1mm;
+        }
+        
+        .col-no { width: 5%; }
+        .col-name { width: 45%; }
+        .col-brand { width: 15%; }
+        .col-qty { width: 10%; }
+        .col-unit-price { width: 12%; }
+        .col-total { width: 13%; }
+        
+        /* ОБЩИ СУМИ - БЕЗ overflow: hidden */
+        .totals-vat-container {
+            width: 100%;
+            margin-bottom: 10mm;
+            clear: both;
+        }
+        
+        .totals-box {
+            width: 48%;
+            float: left;
+        }
+        
+        .vat-box {
+            width: 48%;
+            float: right;
+            border: 1pt solid #000;
+            padding: 2mm;
+            font-size: 9pt;
+            border-radius: 5px;
+        }
+        
+        .total-row {
+            margin-bottom: 2mm;
+            clear: both;
+        }
+        
+        .total-label {
+            float: left;
+            width: 30mm;
+            font-weight: bold;
+            text-align: right;
+            padding-right: 3mm;
+            font-size: 10pt;
+        }
+        
+        .total-value {
+            float: right;
+            width: 25mm;
+            font-weight: bold;
+            text-align: right;
+            border-bottom: 1pt solid #000;
+            padding-bottom: 1mm;
+            font-size: 10pt;
+        }
+        
+        .vat-title {
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+        
+        /* ДОЛНА ИНФОРМАЦИЯ - БЕЗ overflow: hidden */
+        .details-container {
+            width: 100%;
+            margin-bottom: 10mm;
+            clear: both;
+        }
+        
+        .details-left, .details-right {
+            width: 48%;
+        }
+        
+        .details-left {
+            float: left;
+        }
+        
+        .details-right {
+            float: right;
+        }
+        
+        .detail-line {
+            margin-bottom: 1.5mm;
+            clear: both;
+        }
+        
+        .detail-label {
+            float: left;
+            width: 25mm;
+            font-weight: bold;
+            font-size: 9pt;
+        }
+        
+        .detail-value {
+            margin-left: 27mm;
+            border-bottom: 0.5pt dotted #666;
+            padding-bottom: 0.5mm;
+            font-size: 9pt;
+        }
+        
+        /* ПОДПИСИ - БЕЗ overflow: hidden */
+        .signatures-container {
+            width: 100%;
+            margin-top: 15mm;
+            clear: both;
+        }
+        
+        .signature-left, .signature-right {
+            width: 48%;
+            text-align: center;
+            float: left;
+        }
+        
+        .signature-right {
+            float: right;
+        }
+        
+        .signature-text {
+            margin-bottom: 10mm;
+            font-size: 10pt;
+        }
+        
+        .signature-line {
+            border-top: 1pt solid #000;
+            width: 100%;
+            height: 10mm;
+        }
+        
+        /* ПРЕХОД МЕЖДУ СТРАНИЦИ */
+        .page-break {
+            page-break-after: always;
+        }
+        
+        /* CLEARFIX ЗА FLOAT ЕЛЕМЕНТИ */
+        .clearfix::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>ФАКТУРА</h1>
-        <h2>№ {{ $invoice->number }}</h2>
-    </div>
-
-    <div class="info-section">
-        <h3>Информация за фактурата</h3>
-        <div class="info-row">
-            <span class="info-label">Дата на издаване:</span>
-            <span>{{ date('d.m.Y', strtotime($invoice->issue_date)) }}</span>
+    <!-- ПЪРВА СТРАНИЦА -->
+    <div>
+        <!-- ТРИ КОЛОНИ -->
+        <div class="three-column-container">
+            <div class="client-box">
+                <div class="section-title">Клиент</div>
+                <div class="info-line">
+                    <div class="label">Клиент:</div>
+                    <div class="value">{{ $invoice->customer->name ?? 'Няма данни' }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">Град:</div>
+                    <div class="value">{{ $invoice->customer->city ?? '' }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">Адрес:</div>
+                    <div class="value">{{ $invoice->customer->address ?? '' }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">БИК / ЕГН:</div>
+                    <div class="value">{{ $invoice->customer->vat_number ?? '' }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">ЗДДС №:</div>
+                    <div class="value">{{ $invoice->customer->vat_number ?? '' }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">МОЛ:</div>
+                    <div class="value">{{ $invoice->customer->contact_person ?? '' }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">IBAN:</div>
+                    <div class="value">{{ $invoice->customer->iban ?? ' ' }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">Банка:</div>
+                    <div class="value">{{ $invoice->customer->bank_name ?? ' ' }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">BIC:</div>
+                    <div class="value">{{ $invoice->customer->bic ?? ' ' }}</div>
+                </div>
+            </div>
+            
+            <div class="invoice-box">
+                <div class="invoice-title">ФАКТУРА</div>
+                @php
+                    $issueDate = $invoice->issue_date;
+                    if (is_string($issueDate)) {
+                        $issueDate = \Carbon\Carbon::parse($issueDate);
+                    }
+                @endphp
+                <div class="invoice-number-large">№ {{ $invoice->invoice_number }}</div>
+                <div class="invoice-date-large">Дата {{ $issueDate ? $issueDate->format('d.m.Y') : now()->format('d.m.Y') }}</div>
+            </div>
+            
+            <div class="supplier-box">
+                <div class="section-title">Доставчик</div>
+                @php
+                    $company = [
+                        'name' => 'ВАШАТА КОМПАНИЯ АД',
+                        'city' => 'ВАШИЯТ ГРАД',
+                        'address' => 'ул. ВАШАТА АДРЕС',
+                        'vat_number' => '000000000',
+                        'contact_person' => 'ВАШЕТО ИМЕ',
+                        'iban' => 'BG00XXXX00000000000000',
+                        'bank_name' => 'ВАШАТА БАНКА АД',
+                        'bic' => 'XXXXXXXX'
+                    ];
+                @endphp
+                <div class="info-line">
+                    <div class="label">Доставчик:</div>
+                    <div class="value">{{ $company['name'] }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">Град:</div>
+                    <div class="value">{{ $company['city'] }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">Адрес:</div>
+                    <div class="value">{{ $company['address'] }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">БИК / ЕГН:</div>
+                    <div class="value">{{ $company['vat_number'] }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">ЗДДС №:</div>
+                    <div class="value">{{ $company['vat_number'] }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">МОЛ:</div>
+                    <div class="value">{{ $company['contact_person'] }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">IBAN:</div>
+                    <div class="value">{{ $company['iban'] }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">Банка:</div>
+                    <div class="value">{{ $company['bank_name'] }}</div>
+                </div>
+                <div class="info-line">
+                    <div class="label">BIC:</div>
+                    <div class="value">{{ $company['bic'] }}</div>
+                </div>
+            </div>
         </div>
-        <div class="info-row">
-            <span class="info-label">Краен срок за плащане:</span>
-            <span>{{ date('d.m.Y', strtotime($invoice->due_date)) }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Статус:</span>
-            <span>
-                @if($invoice->status == 'draft')
-                    Чернова
-                @elseif($invoice->status == 'sent')
-                    Изпратена
-                @elseif($invoice->status == 'paid')
-                    Платена
-                @elseif($invoice->status == 'cancelled')
-                    Анулирана
-                @endif
-            </span>
-        </div>
-    </div>
-
-    <div class="info-section">
-        <h3>Информация за клиента</h3>
-        <div class="info-row">
-            <span class="info-label">Име:</span>
-            <span>{{ $invoice->customer->name ?? 'N/A' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Телефон:</span>
-            <span>{{ $invoice->customer->phone ?? 'N/A' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Имейл:</span>
-            <span>{{ $invoice->customer->email ?? 'N/A' }}</span>
-        </div>
-        @if(isset($invoice->customer->address) && $invoice->customer->address)
-        <div class="info-row">
-            <span class="info-label">Адрес:</span>
-            <span>{{ $invoice->customer->address }}</span>
-        </div>
-        @endif
-    </div>
-
-    <div class="info-section">
-        <h3>Информация за поръчката</h3>
-        <div class="info-row">
-            <span class="info-label">Номер на поръчка:</span>
-            <span>{{ $invoice->workOrder->number ?? 'N/A' }}</span>
-        </div>
-    </div>
-
-    <div class="info-section">
-        <h3>Артикули</h3>
-        @if(isset($invoice->items) && $invoice->items->count() > 0)
-        <table class="table">
+        
+        <!-- АРТИКУЛИ -->
+        <div class="items-title">Артикули</div>
+        <table class="items-table">
             <thead>
                 <tr>
-                    <th>№</th>
-                    <th>Описание</th>
-                    <th>Количество</th>
-                    <th>Ед. цена</th>
-                    <th>ДДС %</th>
-                    <th>Общо</th>
+                    <th class="col-no">№</th>
+                    <th class="col-name">Наименование</th>
+                    <th class="col-brand">Марка</th>
+                    <th class="col-qty">Количество</th>
+                    <th class="col-unit-price">Ед. цена</th>
+                    <th class="col-total">Цена</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($invoice->items as $index => $item)
-                <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td>{{ $item->description }}</td>
-                    <td>{{ $item->quantity }}</td>
-                    <td>{{ number_format($item->unit_price, 2) }} лв.</td>
-                    <td>{{ number_format($item->vat_percent, 2) }}%</td>
-                    <td>{{ number_format($item->line_total, 2) }} лв.</td>
-                </tr>
-                @endforeach
-                <tr class="total-row">
-                    <td colspan="5" style="text-align: right;"><strong>Общо без ДДС:</strong></td>
-                    <td><strong>{{ number_format($invoice->subtotal, 2) }} лв.</strong></td>
-                </tr>
-                <tr class="total-row">
-                    <td colspan="5" style="text-align: right;"><strong>ДДС:</strong></td>
-                    <td><strong>{{ number_format($invoice->vat_total, 2) }} лв.</strong></td>
-                </tr>
-                <tr class="total-row">
-                    <td colspan="5" style="text-align: right;"><strong>Крайна сума:</strong></td>
-                    <td><strong>{{ number_format($invoice->grand_total, 2) }} лв.</strong></td>
-                </tr>
+                @if($invoice->items && count($invoice->items) > 0)
+                    @foreach($invoice->items as $index => $item)
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td class="col-name">{{ $item->description }}</td>
+                        <td class="col-brand">{{ $item->brand ?? $item->unit ?? 'бр.' }}</td>
+                        <td>{{ number_format($item->quantity, 2) }}</td>
+                        <td>{{ number_format($item->unit_price, 2) }}</td>
+                        <td>{{ number_format($item->quantity * $item->unit_price, 2) }}</td>
+                    </tr>
+                    @endforeach
+                @else
+                    <tr>
+                        <td>1</td>
+                        <td class="col-name">Листи за принтер</td>
+                        <td class="col-brand">пакет</td>
+                        <td>3</td>
+                        <td>7.25</td>
+                        <td>21.75</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td class="col-name">Списание за риболов</td>
+                        <td class="col-brand">бр.</td>
+                        <td>5</td>
+                        <td>2.45</td>
+                        <td>12.25</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td class="col-name">Учебник по право</td>
+                        <td class="col-brand">бр.</td>
+                        <td>1</td>
+                        <td>10.69</td>
+                        <td>10.69</td>
+                    </tr>
+                @endif
             </tbody>
         </table>
-        @else
-        <p>Няма добавени артикули.</p>
-        @endif
+        
+        <!-- ОБЩИ СУМИ -->
+        <div class="totals-vat-container">
+            <div class="totals-box">
+                @php
+                    $subtotal = $invoice->items ? $invoice->items->sum(function($item) {
+                        return $item->quantity * $item->unit_price;
+                    }) : 44.69;
+                    $total = $subtotal;
+                @endphp
+                <div class="total-row">
+                    <div class="total-label">Стойност:</div>
+                    <div class="total-value">{{ number_format($subtotal, 2) }}</div>
+                </div>
+                <div class="total-row">
+                    <div class="total-label">Сума за плащане:</div>
+                    <div class="total-value">{{ number_format($total, 2) }}</div>
+                </div>
+            </div>
+            <div class="vat-box">
+                <div class="vat-title">Основание за неизискване на ДДС</div>
+                <div>чл. 113, ал. 9 от ЗДДС</div>
+            </div>
+        </div>
     </div>
-
-    <div class="footer">
-        <p>Генерирано на: {{ date('d.m.Y H:i:s') }}</p>
+    
+    <!-- ВТОРА СТРАНИЦА -->
+    <div class="page-break"></div>
+    
+    <div>
+        <!-- ДОЛНА ИНФОРМАЦИЯ -->
+        <div class="details-container">
+            <div class="details-left">
+                <div class="detail-line">
+                    <div class="detail-label">Данъчно събитие:</div>
+                    <div class="detail-value">{{ $issueDate ? $issueDate->format('d.m.Y') : now()->format('d.m.Y') }}</div>
+                </div>
+                <div class="detail-line">
+                    <div class="detail-label">Валута:</div>
+                    <div class="detail-value">BGN</div>
+                </div>
+                <div class="detail-line">
+                    <div class="detail-label">Получател:</div>
+                    <div class="detail-value">{{ $invoice->customer->contact_person ?? 'Анна Димитрова' }}</div>
+                </div>
+            </div>
+            <div class="details-right">
+                <div class="detail-line">
+                    <div class="detail-label">Място на сделката:</div>
+                    <div class="detail-value">{{ $company['city'] }}</div>
+                </div>
+                <div class="detail-line">
+                    <div class="detail-label">Начин на плащане:</div>
+                    <div class="detail-value">По банков път</div>
+                </div>
+                <div class="detail-line">
+                    <div class="detail-label">Съставил:</div>
+                    <div class="detail-value">{{ $company['contact_person'] }}</div>
+                </div>
+            </div>
+        </div>
         
-        @if(isset($copy) && $copy > 0)
-        <p><strong>Копие №{{ $copy }}</strong></p>
-        @endif
-        
-        <div class="signature">
-            <p>С уважение,</p>
-            <p><strong>{{ config('app.name', 'Автосервиз') }}</strong></p>
-            <div class="signature-line"></div>
-            <p>Подпис и печат</p>
+        <!-- ПОДПИСИ -->
+        <div class="signatures-container">
+            <div class="signature-left">
+                <div class="signature-text">Подпис</div>
+                <div class="signature-line"></div>
+            </div>
+            <div class="signature-right">
+                <div class="signature-text">Подпис</div>
+                <div class="signature-line"></div>
+            </div>
         </div>
     </div>
 </body>

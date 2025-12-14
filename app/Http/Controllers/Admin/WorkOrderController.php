@@ -35,10 +35,10 @@ class WorkOrderController extends Controller
         $services = Service::active()->select('id', 'code', 'name', 'price', 'vat_percent', 'duration_minutes')
             ->orderBy('name')
             ->get();
-        
+
         // АКТУАЛИЗИРАНО: Използваме правилното име на колоната 'mileage'
         $vehiclesForMileage = Vehicle::select('id', 'mileage')->get();
-        
+
         return view('admin.work-orders.create', compact('customers', 'vehicles', 'mechanics', 'products', 'services', 'vehiclesForMileage'));
     }
 
@@ -101,7 +101,7 @@ class WorkOrderController extends Controller
                         // Това е продукт
                         $itemData['product_id'] = str_replace('product_', '', $productId);
                         $itemData['service_id'] = null;
-                        
+
                         // Складова наличност само за продукти
                         StockMovement::create([
                             'product_id'     => $itemData['product_id'],
@@ -141,7 +141,7 @@ class WorkOrderController extends Controller
         return view('admin.work-orders.show', compact('workOrder'));
     }
 
-        /**
+    /**
      * Експортира ремонтна поръчка в различни формати (PDF, Excel, CSV).
      */
     public function export(WorkOrder $workOrder, string $type)
@@ -150,14 +150,12 @@ class WorkOrderController extends Controller
             if ($type === 'pdf') {
                 // Вече имаме маршрут 'admin.work-orders.pdf', затова пренасочваме към него
                 return redirect()->route('admin.work-orders.pdf', $workOrder);
-            } 
-            elseif (in_array($type, ['excel', 'csv'])) {
+            } elseif (in_array($type, ['excel', 'csv'])) {
                 // Засега само демонстрация - в бъще може да се имплементира
                 return redirect()->back()->with('warning', 'Експортът в ' . strtoupper($type) . ' формат ще бъде достъпен скоро.');
             }
-            
+
             return redirect()->back()->with('error', 'Невалиден тип за експорт.');
-            
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Грешка при експорт: ' . $e->getMessage());
         }
@@ -174,10 +172,10 @@ class WorkOrderController extends Controller
         $services = Service::active()->select('id', 'code', 'name', 'price', 'vat_percent', 'duration_minutes')
             ->orderBy('name')
             ->get();
-        
+
         // АКТУАЛИЗИРАНО: Използваме правилното име на колоната 'mileage'
         $vehiclesForMileage = Vehicle::select('id', 'mileage')->get();
-            
+
         return view('admin.work-orders.edit', compact('workOrder', 'customers', 'vehicles', 'mechanics', 'products', 'services', 'vehiclesForMileage'));
     }
 
@@ -201,7 +199,7 @@ class WorkOrderController extends Controller
 
         DB::transaction(function () use ($validated, $request, $workOrder) {
             $userId = Auth::check() ? Auth::user()->id : 0;
-            
+
             // Актуализирай основната информация за поръчката
             $workOrder->update([
                 'customer_id'   => $validated['customer_id'],
@@ -215,7 +213,7 @@ class WorkOrderController extends Controller
 
             // ИЗТРИЙ старите items и добави новите
             $workOrder->items()->delete();
-            
+
             $totalWithout = 0;
             foreach ($request->items as $row) {
                 $qty   = $row['quantity'];
@@ -242,7 +240,7 @@ class WorkOrderController extends Controller
                         // Това е продукт
                         $itemData['product_id'] = str_replace('product_', '', $productId);
                         $itemData['service_id'] = null;
-                        
+
                         // Складова наличност само за продукти
                         StockMovement::create([
                             'product_id'     => $itemData['product_id'],
@@ -314,8 +312,9 @@ class WorkOrderController extends Controller
         }
 
         $copy = $request->get('copy', 0);
-        return Pdf::loadView('admin.invoices.pdf', compact('invoice', 'copy'))
-                  ->stream('invoice_' . $invoice->number . '.pdf');
+        // ВАЖНО: Тук се зарежда вече поправеният шаблон 'admin.invoices.pdf'
+        $pdf = PDF::loadView('admin.invoices.pdf', compact('invoice', 'copy'));
+        return $pdf->stream('invoice_' . $invoice->number . '.pdf');
     }
 
     /**
@@ -324,7 +323,7 @@ class WorkOrderController extends Controller
     public function search(Request $request)
     {
         $query = $request->get('q');
-        
+
         if (!$query || strlen($query) < 2) {
             return response()->json([
                 'customers' => [],
@@ -349,7 +348,7 @@ class WorkOrderController extends Controller
                         'address' => $customer->address,
                     ];
                 }),
-                
+
             'vehicles' => Vehicle::where('plate', 'like', "%{$query}%")
                 ->orWhere('vin', 'like', "%{$query}%")
                 ->orWhere('make', 'like', "%{$query}%")
@@ -377,7 +376,7 @@ class WorkOrderController extends Controller
                     ];
                 })
         ];
-        
+
         return response()->json($results);
     }
 
@@ -442,7 +441,7 @@ class WorkOrderController extends Controller
                     'full_text' => $vehicle->plate . ' - ' . $vehicle->make . ' ' . $vehicle->model . ($vehicle->year ? ' (' . $vehicle->year . ')' : ''),
                 ];
             });
-            
+
         return response()->json($vehicles);
     }
 
@@ -453,20 +452,20 @@ class WorkOrderController extends Controller
     {
         $query = $request->get('q');
         $type = $request->get('type', 'all'); // all, product, service
-        
+
         $results = [];
-        
+
         if ($type === 'all' || $type === 'product') {
             $products = Product::query();
-            
+
             if ($query) {
                 $products->where(function ($q) use ($query) {
                     $q->where('sku', 'like', "%{$query}%")
-                      ->orWhere('name', 'like', "%{$query}%")
-                      ->orWhere('description', 'like', "%{$query}%");
+                        ->orWhere('name', 'like', "%{$query}%")
+                        ->orWhere('description', 'like', "%{$query}%");
                 });
             }
-            
+
             $products = $products->select('id', 'sku', 'name', 'price', 'vat_percent')
                 ->orderBy('name')
                 ->limit(10)
@@ -482,21 +481,21 @@ class WorkOrderController extends Controller
                         'full_text' => $product->sku . ' - ' . $product->name . ' (' . number_format($product->price, 2) . ' лв.)',
                     ];
                 });
-            
+
             $results = array_merge($results, $products->toArray());
         }
-        
+
         if ($type === 'all' || $type === 'service') {
             $services = Service::active()->query();
-            
+
             if ($query) {
                 $services->where(function ($q) use ($query) {
                     $q->where('code', 'like', "%{$query}%")
-                      ->orWhere('name', 'like', "%{$query}%")
-                      ->orWhere('description', 'like', "%{$query}%");
+                        ->orWhere('name', 'like', "%{$query}%")
+                        ->orWhere('description', 'like', "%{$query}%");
                 });
             }
-            
+
             $services = $services->select('id', 'code', 'name', 'price', 'vat_percent', 'duration_minutes')
                 ->orderBy('name')
                 ->limit(10)
@@ -513,10 +512,10 @@ class WorkOrderController extends Controller
                         'full_text' => $service->code . ' - ' . $service->name . ' (' . number_format($service->price, 2) . ' лв.)',
                     ];
                 });
-            
+
             $results = array_merge($results, $services->toArray());
         }
-        
+
         return response()->json($results);
     }
 }
