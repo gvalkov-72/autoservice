@@ -112,7 +112,12 @@ return [
             'can'  => 'admin',
         ],
 
-        ['header' => 'НАСТРОЙКИ'],
+        ['header' => 'СИСТЕМНИ НАСТРОЙКИ'],
+        [
+            'text' => 'Данни на Автосервиза',
+            'url'  => 'admin/company-settings',
+            'icon' => 'fas fa-fw fa-cog',
+        ],
         [
             'text' => 'Изход',
             'url'  => 'logout',

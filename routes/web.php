@@ -39,6 +39,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         ->name('work-orders.export');
     Route::resource('invoices',    \App\Http\Controllers\Admin\InvoiceController::class);
 
+    /* --- ДАННИ НА АВТОСЕРВИЗА (Company Settings) --- */
+    Route::resource('company-settings', \App\Http\Controllers\Admin\CompanySettingController::class);
+
+    /* --- EXPORT-и за Company Settings --- */
+    Route::get('company-settings/{companySetting}/export/pdf', [\App\Http\Controllers\Admin\CompanySettingController::class, 'exportPdf'])
+        ->name('company-settings.export.pdf');
+    Route::get('company-settings/{companySetting}/export/excel', [\App\Http\Controllers\Admin\CompanySettingController::class, 'exportExcel'])
+        ->name('company-settings.export.excel');
+    Route::get('company-settings/{companySetting}/export/csv', [\App\Http\Controllers\Admin\CompanySettingController::class, 'exportCsv'])
+        ->name('company-settings.export.csv');
+
     /* --- EXPORT-и за Customer --- */
     Route::get('customers/{customer}/export/pdf', [\App\Http\Controllers\Admin\CustomerController::class, 'exportPdf'])
         ->name('customers.export.pdf');
