@@ -11,6 +11,7 @@ use App\Models\WorkOrderItem;
 use App\Models\StockMovement;
 use App\Models\Product;
 use App\Models\Service;
+use App\Models\CompanySetting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -311,9 +312,18 @@ class WorkOrderController extends Controller
             }
         }
 
+        // ЗАРЕЖДАМЕ НАСТРОЙКИТЕ НА КОМПАНИЯТА
+        $companySettings = CompanySetting::first();
+
         $copy = $request->get('copy', 0);
-        // ВАЖНО: Тук се зарежда вече поправеният шаблон 'admin.invoices.pdf'
-        $pdf = PDF::loadView('admin.invoices.pdf', compact('invoice', 'copy'));
+
+        // ПОДАВАМЕ companySettings към VIEW
+        $pdf = PDF::loadView('admin.invoices.pdf', [
+            'invoice' => $invoice,
+            'copy' => $copy,
+            'companySettings' => $companySettings // ДОБАВИ ТОВА
+        ]);
+
         return $pdf->stream('invoice_' . $invoice->number . '.pdf');
     }
 
