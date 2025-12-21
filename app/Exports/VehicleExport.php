@@ -13,16 +13,17 @@ class VehicleExport implements FromCollection, WithHeadings, WithMapping
 
     public function collection()
     {
+        // основен ред + работни поръчки като отделни редове
         $rows = collect([$this->vehicle]);
-        foreach ($this->vehicle->workOrders as $o) $rows->push(['type' => 'order', 'data' => $o]);
+        foreach ($this->vehicle->workOrders as $o) $rows->push(['type' => 'work_order', 'data' => $o]);
         return $rows;
     }
 
     public function headings(): array
     {
         return [
-            'ID', 'Рег. №', 'VIN', 'Марка', 'Модел', 'Година', 'Пробег', 'ДК №', 'Бележки',
-            'Тип ред', 'Детайли'
+            'ID', 'Тип', 'Рег. №', 'Марка', 'Модел', 'Година', 'VIN', 'Шаси',
+            'Клиент', 'Пробег (км)', 'Статус', 'Бележки'
         ];
     }
 
@@ -30,17 +31,39 @@ class VehicleExport implements FromCollection, WithHeadings, WithMapping
     {
         if ($row instanceof Vehicle) {
             return [
-                $row->id, $row->plate, $row->vin, $row->make, $row->model,
-                $row->year, $row->mileage, $row->dk_no, $row->notes, '', ''
+                $row->id,
+                'Превозно средство',
+                $row->plate,
+                $row->make,
+                $row->model,
+                $row->year,
+                $row->vin,
+                $row->chassis,
+                $row->customer->name ?? '-',
+                $row->mileage,
+                $row->is_active ? 'Активен' : 'Неактивен',
+                $row->notes
             ];
         }
-        if (($row['type'] ?? null) === 'order') {
+
+        if (($row['type'] ?? null) === 'work_order') {
             $o = $row['data'];
             return [
-                '', '', '', '', '', '', '', '', '',
-                'Поръчка', $o->number.' – '.$o->status.' ('.number_format($o->total, 2).' лв.)'
+                '', // ID
+                'Работна поръчка',
+                '', // Рег. №
+                '', // Марка
+                '', // Модел
+                '', // Година
+                '', // VIN
+                '', // Шаси
+                '', // Клиент
+                '', // Пробег
+                $o->status,
+                $o->number . ' – ' . number_format($o->total, 2) . ' лв. (' . ($o->received_at?->format('d.m.Y') ?? '-') . ')'
             ];
         }
-        return array_fill(0, 11, '');
+
+        return array_fill(0, 12, '');
     }
 }

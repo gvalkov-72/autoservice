@@ -13,7 +13,8 @@ class MasterSeeder extends Seeder
             AdminUserSeeder::class,
             CustomerImportSeeder::class,
             //CustomerSeeder::class,
-            VehicleSeeder::class,
+            VehicleImportSeeder::class,
+            //VehicleSeeder::class,
             ProductSeeder::class,
             ServiceSeeder::class,
         ]);

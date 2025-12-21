@@ -58,6 +58,12 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('customers/{customer}/export/csv', [\App\Http\Controllers\Admin\CustomerController::class, 'exportCsv'])
         ->name('customers.export.csv');
 
+    /* --- ДОБАВЕНИ МАРШРУТИ ЗА ДОПЪЛНИТЕЛНИ ФУНКЦИИ НА CUSTOMERS --- */
+    Route::post('customers/bulk-action', [\App\Http\Controllers\Admin\CustomerController::class, 'bulkAction'])->name('customers.bulk-action');
+    Route::get('customers/export/all', [\App\Http\Controllers\Admin\CustomerController::class, 'exportAll'])->name('customers.export.all');
+    Route::get('customers/import', [\App\Http\Controllers\Admin\CustomerController::class, 'import'])->name('customers.import');
+    Route::post('customers/import', [\App\Http\Controllers\Admin\CustomerController::class, 'importStore'])->name('customers.import.store');
+
     /* --- EXPORT-и за Vehicle --- */
     Route::get('vehicles/{vehicle}/export/pdf', [\App\Http\Controllers\Admin\VehicleController::class, 'exportPdf'])->name('vehicles.export.pdf');
     Route::get('vehicles/{vehicle}/export/excel', [\App\Http\Controllers\Admin\VehicleController::class, 'exportExcel'])->name('vehicles.export.excel');
