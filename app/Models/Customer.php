@@ -35,7 +35,7 @@ class Customer extends Model
         'include_in_reports' => 'boolean',
     ];
 
-    // Останалите методи остават същите...
+    // ========== RELATIONS ==========
     public function vehicles()
     {
         return $this->hasMany(Vehicle::class);
@@ -49,5 +49,55 @@ class Customer extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    // ========== SCOPES ==========
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeCustomers($query)
+    {
+        return $query->whereIn('type', ['customer', 'both']);
+    }
+
+    public function scopeSuppliers($query)
+    {
+        return $query->whereIn('type', ['supplier', 'both']);
+    }
+
+    // ========== ACCESSORS ==========
+    public function getTypeLabelAttribute()
+    {
+        return [
+            'customer' => 'Клиент',
+            'supplier' => 'Доставчик',
+            'both' => 'Клиент и Доставчик',
+        ][$this->type] ?? $this->type;
+    }
+
+    public function getFullBulstatAttribute()
+    {
+        if (!$this->bulstat) return null;
+        $prefix = $this->bulstat_letter ? "BG{$this->bulstat_letter}" : 'BG';
+        return $prefix . $this->bulstat;
+    }
+
+    public function getFormattedAddressAttribute()
+    {
+        if ($this->address) return $this->address;
+        return trim($this->address_line1 . ', ' . $this->address_line2, ', ');
+    }
+
+    // ========== HELPERS ==========
+    public function isActive()
+    {
+        return $this->is_active === true;
+    }
+
+    public function shouldIncludeInReports()
+    {
+        return $this->include_in_reports === true;
     }
 }

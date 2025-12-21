@@ -7,7 +7,7 @@
 @endpush
 
 @section('content_header')
-    <h1>Детайли за клиент</h1>
+    <h1>Детайли за клиент: <strong>{{ $customer->name }}</strong></h1>
 @stop
 
 @section('content')
@@ -30,22 +30,95 @@
         </div>
 
         <div class="card-body">
-            {{-- Основни данни --}}
-            <table class="table table-sm table-bordered">
-                <tr><th>ID</th><td>{{ $customer->id }}</td></tr>
-                <tr><th>Име / Фирма</th><td>{{ $customer->name }}</td></tr>
-                <tr><th>Тип</th><td>{{ $customer->type == 'company' ? 'Фирма' : 'Физ. лице' }}</td></tr>
-                <tr><th>ДДС №</th><td>{{ $customer->vat_number ?? '-' }}</td></tr>
-                <tr><th>Контактно лице</th><td>{{ $customer->contact_person ?? '-' }}</td></tr>
-                <tr><th>Телефон</th><td>{{ $customer->phone ?? '-' }}</td></tr>
-                <tr><th>Имейл</th><td>{{ $customer->email ?? '-' }}</td></tr>
-                <tr><th>Адрес</th><td>{{ $customer->address ?? '-' }}</td></tr>
-                <tr><th>Град</th><td>{{ $customer->city ?? '-' }}</td></tr>
-                <tr><th>Бележки</th><td>{{ $customer->notes ?? '-' }}</td></tr>
-            </table>
+            <div class="row">
+                <!-- Основна информация -->
+                <div class="col-md-6">
+                    <div class="card card-primary card-outline">
+                        <div class="card-header">
+                            <h3 class="card-title">Основна информация</h3>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-sm table-bordered mb-0">
+                                <tr><th style="width: 40%">ID</th><td>{{ $customer->id }}</td></tr>
+                                <tr><th>Старо ID (Access)</th><td>{{ $customer->old_system_id ?? '-' }}</td></tr>
+                                <tr><th>Тип</th><td>{{ $customer->type_label }}</td></tr>
+                                <tr><th>Име / Фирма</th><td>{{ $customer->name }}</td></tr>
+                                <tr><th>Контактно лице</th><td>{{ $customer->contact_person ?? '-' }}</td></tr>
+                                <tr><th>ДДС номер</th><td>{{ $customer->vat_number ?? '-' }}</td></tr>
+                                <tr><th>Булстат</th><td>
+                                    @if($customer->bulstat)
+                                        {{ $customer->bulstat }}
+                                        @if($customer->bulstat_letter)
+                                            (Буква: {{ $customer->bulstat_letter }})
+                                        @endif
+                                    @else
+                                        -
+                                    @endif
+                                </td></tr>
+                                <tr><th>Пълен булстат</th><td>{{ $customer->full_bulstat ?? '-' }}</td></tr>
+                                <tr><th>Съдебен регистър</th><td>{{ $customer->court_registration ?? '-' }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
-            {{-- Автомобили на клиента --}}
-            <h4 class="mt-4">Автомобили</h4>
+                <!-- Контакти и статус -->
+                <div class="col-md-6">
+                    <div class="card card-info card-outline">
+                        <div class="card-header">
+                            <h3 class="card-title">Контакти и статус</h3>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-sm table-bordered mb-0">
+                                <tr><th style="width: 40%">Телефон</th><td>{{ $customer->phone ?? '-' }}</td></tr>
+                                <tr><th>Факс</th><td>{{ $customer->fax ?? '-' }}</td></tr>
+                                <tr><th>Имейл</th><td>
+                                    @if($customer->email)
+                                        <a href="mailto:{{ $customer->email }}">{{ $customer->email }}</a>
+                                    @else
+                                        -
+                                    @endif
+                                </td></tr>
+                                <tr><th>Форматиран адрес</th><td>{{ $customer->formatted_address ?? '-' }}</td></tr>
+                                <tr><th>Адрес ред 1</th><td>{{ $customer->address_line1 ?? '-' }}</td></tr>
+                                <tr><th>Адрес ред 2</th><td>{{ $customer->address_line2 ?? '-' }}</td></tr>
+                                <tr><th>Град</th><td>{{ $customer->city ?? '-' }}</td></tr>
+                                <tr><th>Статус</th>
+                                    <td>
+                                        @if($customer->is_active)
+                                            <span class="badge badge-success">Активен</span>
+                                        @else
+                                            <span class="badge badge-secondary">Неактивен</span>
+                                        @endif
+                                        @if($customer->include_in_reports)
+                                            <span class="badge badge-info ml-1">Включен в справки</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Бележки -->
+            @if($customer->notes)
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card card-warning card-outline">
+                        <div class="card-header">
+                            <h3 class="card-title">Бележки</h3>
+                        </div>
+                        <div class="card-body">
+                            {{ nl2br(e($customer->notes)) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            <!-- Автомобили на клиента -->
+            <h4 class="mt-4">Автомобили ({{ $customer->vehicles->count() }})</h4>
             <table class="table table-sm table-striped" id="vehiclesTable">
                 <thead>
                     <tr>
@@ -54,7 +127,7 @@
                         <th>Марка/Модел</th>
                         <th>Година</th>
                         <th>Пробег</th>
-                        <th></th> {{-- Подробности бутон --}}
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,13 +145,13 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                        <tr><td colspan="6" class="text-center">Няма регистрирани автомобили</td></tr>
                     @endforelse
                 </tbody>
             </table>
 
-            {{-- Поръчки на клиента --}}
-            <h4 class="mt-4">Поръчки</h4>
+            <!-- Поръчки на клиента -->
+            <h4 class="mt-4">Работни поръчки ({{ $customer->workOrders->count() }})</h4>
             <table class="table table-sm table-striped" id="ordersTable">
                 <thead>
                     <tr>
@@ -86,7 +159,7 @@
                         <th>Статус</th>
                         <th>Приета на</th>
                         <th>Общо</th>
-                        <th></th> {{-- Подробности бутон --}}
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -94,7 +167,6 @@
                         <tr>
                             <td>{{ $wo->number }}</td>
                             <td>{{ $wo->status }}</td>
-                            {{-- КАСТВАМЕ КЪМ Carbon преди format() --}}
                             <td>{{ optional($wo->received_at)->format('d.m.Y') ?? '-' }}</td>
                             <td>{{ number_format($wo->total, 2) }} лв.</td>
                             <td>
@@ -104,15 +176,26 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                        <tr><td colspan="5" class="text-center">Няма работни поръчки</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
         <div class="card-footer">
-            <a href="{{ route('admin.customers.edit', $customer) }}" class="btn btn-primary">Редактирай</a>
-            <a href="{{ route('admin.customers.index') }}" class="btn btn-secondary">Назад</a>
+            <a href="{{ route('admin.customers.edit', $customer) }}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Редактирай
+            </a>
+            <a href="{{ route('admin.customers.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Назад към списъка
+            </a>
+            <form action="{{ route('admin.customers.destroy', $customer) }}" method="POST" class="d-inline">
+                @csrf @method('DELETE')
+                <button type="submit" class="btn btn-danger" 
+                        onclick="return confirm('Сигурни ли сте, че искате да деактивирате този клиент?')">
+                    <i class="fas fa-trash"></i> Деактивирай
+                </button>
+            </form>
         </div>
     </div>
 @stop
@@ -138,7 +221,18 @@
                     { extend: 'csvHtml5', text: 'CSV' },
                     { extend: 'pdfHtml5', text: 'PDF' }
                 ],
-                language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/bg.json' }
+                language: { 
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/bg.json',
+                    search: "Търсене:",
+                    lengthMenu: "Покажи _MENU_ записа",
+                    info: "Показване на _START_ до _END_ от общо _TOTAL_ записа",
+                    paginate: {
+                        first: "Първа",
+                        last: "Последна",
+                        next: "Следваща",
+                        previous: "Предишна"
+                    }
+                }
             });
         });
     </script>
