@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Vehicle;
 use App\Models\Customer;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class VehicleImportSeeder extends Seeder
@@ -30,53 +31,7 @@ class VehicleImportSeeder extends Seeder
     }
 
     /**
-     * Тестване на разделянето на марка и модел
-     */
-    private function testMakeModelSplit(): void
-    {
-        $this->command->info('🧪 ТЕСТ НА РАЗДЕЛЯНЕТО НА МАРКА И МОДЕЛ:');
-
-        $testCases = [
-            'OPEL ASTRA' => ['OPEL', 'ASTRA'],
-            'BMW X5' => ['BMW', 'X5'],
-            'MERCEDES-BENZ C220' => ['MERCEDES-BENZ', 'C220'],
-            'AUDI' => ['AUDI', ''],
-            'VW GOLF 7' => ['VW', 'GOLF 7'],
-            'ФОРД ФОКУС' => ['ФОРД', 'ФОКУС'],
-        ];
-
-        $passed = 0;
-        $total = count($testCases);
-
-        $this->command->line("📋 Тестови случаи ($total общо):");
-
-        foreach ($testCases as $input => $expected) {
-            $result = $this->splitMakeAndModel($input);
-            $isMatch = ($result[0] === $expected[0] && $result[1] === $expected[1]);
-
-            if ($isMatch) {
-                $passed++;
-                $this->command->line("✅ " . $this->truncate($input, 20) . 
-                                   " → Марка: '{$result[0]}', Модел: '{$result[1]}'");
-            } else {
-                $this->command->line("❌ " . $this->truncate($input, 20) . 
-                                   " → Марка: '{$result[0]}', Модел: '{$result[1]}' (очаквано: '{$expected[0]}', '{$expected[1]}')");
-            }
-        }
-
-        $this->command->line(str_repeat('─', 70));
-        $percentage = round(($passed / $total) * 100, 1);
-        $this->command->info("📊 Резултат: $passed от $total теста минаха успешно ($percentage%)");
-
-        if ($passed < $total * 0.8) {
-            $this->command->warn("⚠️  Има значителни разминавания в разделянето!");
-            $this->command->info("💡 Можеш да коригираш правилата в метода splitMakeAndModel()");
-        }
-    }
-
-    /**
      * Конвертира Access Mojibake текст към правилна кирилица
-     * Същата функция като в CustomerImportSeeder
      */
     private function fixAccessEncoding(string $text): string
     {
@@ -88,96 +43,32 @@ class VehicleImportSeeder extends Seeder
             return $text;
         }
 
-        // ПОПЪЛНЕН МАПИНГ за точна конверсия
+        // Основни Access-кирилица мапинг
         $accessFixMap = [
-            // Основни букви
-            'Ê' => 'К', 'à' => 'а', 'ë' => 'л', 'î' => 'о', 'ÿ' => 'я',
-            'á' => 'н', 'Ï' => 'П', 'å' => 'е', '÷' => 'ч', 'í' => 'и',
-            'ð' => 'р', 'ñ' => 'с', 'è' => 'и',
-
             // Главни букви
-            'Ø' => 'Ш', 'À' => 'А', 'Ò' => 'Т', 'Ð' => 'Р', 'Î' => 'О',
-            'Ì' => 'М', 'Å' => 'Е', 'Õ' => 'Х', 'Ô' => 'Ф', 'Ö' => 'Ц',
-            '×' => 'Ч', 'Ù' => 'Щ', 'Ú' => 'Ъ', 'Ü' => 'Ь', 'Ý' => 'Э',
-            'Þ' => 'Ю', 'ß' => 'Я', 'Ç' => 'З', 'È' => 'И', 'É' => 'Й',
-            'Ë' => 'Л', 'Í' => 'Н', 'Ñ' => 'С', 'Ó' => 'У', 'Â' => 'В',
-            'Ã' => 'Г', 'Ä' => 'Д', 'Æ' => 'Ж', 'Á' => 'Б',
-
+            'À' => 'А', 'Á' => 'Б', 'Â' => 'В', 'Ã' => 'Г', 'Ä' => 'Д',
+            'Å' => 'Е', 'Æ' => 'Ж', 'Ç' => 'З', 'È' => 'И', 'É' => 'Й',
+            'Ê' => 'К', 'Ë' => 'Л', 'Ì' => 'М', 'Í' => 'Н', 'Î' => 'О',
+            'Ï' => 'П', 'Ð' => 'Р', 'Ñ' => 'С', 'Ò' => 'Т', 'Ó' => 'У',
+            'Ô' => 'Ф', 'Õ' => 'Х', 'Ö' => 'Ц', '×' => 'Ч', 'Ø' => 'Ш',
+            'Ù' => 'Щ', 'Ú' => 'Ъ', 'Û' => 'Ы', 'Ü' => 'Ь', 'Ý' => 'Э',
+            'Þ' => 'Ю', 'ß' => 'Я',
+            
             // Малки букви
-            'ú' => 'ъ', 'û' => 'ы', 'ü' => 'ь', 'ý' => 'э', 'þ' => 'ю',
-            'ó' => 'у', 'ò' => 'т', 'õ' => 'х', 'ô' => 'ф', 'ö' => 'ц',
-            'æ' => 'ж', 'ç' => 'з', 'é' => 'й', 'ê' => 'к', 'ì' => 'м',
-            'ï' => 'п', 'â' => 'в', 'ã' => 'г', 'ä' => 'д', 'å' => 'е',
-            'á' => 'б', 'ò' => 'т', 'õ' => 'х',
-
-            // Специфични за "Бизнес" и "Минчев"
-            'è' => 'и', 'ñ' => 'с', // за "Бизнес"
-            'é' => 'н', 'â' => 'в', // за "Минчев" - 'é' трябва да е 'н', не 'й'
+            'à' => 'а', 'á' => 'б', 'â' => 'в', 'ã' => 'г', 'ä' => 'д',
+            'å' => 'е', 'æ' => 'ж', 'ç' => 'з', 'è' => 'и', 'é' => 'й',
+            'ê' => 'к', 'ë' => 'л', 'ì' => 'м', 'í' => 'н', 'î' => 'о',
+            'ï' => 'п', 'ð' => 'р', 'ñ' => 'с', 'ò' => 'т', 'ó' => 'у',
+            'ô' => 'ф', 'õ' => 'х', 'ö' => 'ц', '÷' => 'ч', 'ø' => 'ш',
+            'ù' => 'щ', 'ú' => 'ъ', 'û' => 'ы', 'ü' => 'ь', 'ý' => 'э',
+            'þ' => 'ю', 'ÿ' => 'я',
         ];
 
-        $fixed = strtr($text, $accessFixMap);
-
-        // СПЕЦИАЛНИ ПОПРАВКИ
-        $fixed = preg_replace('/Калояи/u', 'КалоЯн', $fixed);
-        $fixed = preg_replace('/Печеиярски/u', 'Печенярски', $fixed);
-        $fixed = preg_replace('/Стефаи/u', 'Стефан', $fixed);
-        $fixed = preg_replace('/Миичев/u', 'Минчев', $fixed);
-        $fixed = preg_replace('/Бизиес/u', 'Бизнес', $fixed);
-        $fixed = preg_replace('/ШАТРОМ  ЕООД/u', 'ШАТРОМ ЕООД', $fixed);
-
-        return $fixed;
+        return strtr($text, $accessFixMap);
     }
 
     /**
-     * Тестване на encoding конверсията
-     */
-    private function testEncodingFix(): void
-    {
-        $this->command->info('🧪 ТЕСТ НА КОНВЕРСИЯТА:');
-
-        $testCases = [
-            'Êàëîÿí Ïå÷åíÿðñêè' => 'КалоЯн Печенярски', // Променено от 'КАЛОЯН ПЕЧЕНЯРСКИ' на 'КалоЯн Печенярски'
-            'ØÀÒÐÎÌ  ÅÎÎÄ' => 'ШАТРОМ ЕООД',
-            'ÒÅÐÇÈÄ ÅÎÎÄ' => 'ТЕРЗИД ЕООД',
-            'Å.Ò.Å. ÅÎÎÄ' => 'Е.Т.Е. ЕООД',
-            'ËÈÍÄÍÅÐ ÁÚËÃÀÐÈß ÅÎÎÄ' => 'ЛИНДНЕР БЪЛГАРИЯ ЕООД',
-            'Ñòåôàí Ìèí÷åâ' => 'Стефан Минчев',
-            'óë. " Áèçíåñ Ïàðê Ñîôèÿ "' => 'ул. " Бизнес Парк София "',
-            'Áèçíåñ' => 'Бизнес',
-            'Ïàðê' => 'Парк',
-            'Ñîôèÿ' => 'София',
-        ];
-
-        $passed = 0;
-        $total = count($testCases);
-
-        foreach ($testCases as $input => $expected) {
-            $result = $this->fixAccessEncoding($input);
-            $isMatch = ($result === $expected);
-
-            if ($isMatch) {
-                $passed++;
-                $this->command->line("✅ " . $this->truncate($input, 30) . 
-                                   " → " . $result);
-            } else {
-                $this->command->line("❌ " . $this->truncate($input, 30) . 
-                                   " → " . $result . " (очаквано: $expected)");
-            }
-        }
-
-        $this->command->line(str_repeat('─', 70));
-        $percentage = round(($passed / $total) * 100, 1);
-        $this->command->info("📊 Резултат: $passed от $total теста минаха успешно ($percentage%)");
-
-        if ($passed < $total * 0.8) {
-            $this->command->warn("⚠️  Има значителни разминавания в конверсията!");
-            $this->command->info("💡 Можеш да коригираш мапинга в метода fixAccessEncoding()");
-        }
-    }
-
-    /**
-     * Парсване на табличен формат от Access (ASCII таблица с вертикални линии)
-     * Този метод обработва специфичната ASCII таблична структура както е в CustomerImportSeeder
+     * Парсване на ASCII табличен формат - ТОЧНА ВЕРСИЯ
      */
     private function parseTableFormat(string $content): array
     {
@@ -193,51 +84,91 @@ class VehicleImportSeeder extends Seeder
             }
             
             // Пропускане на заглавния ред с имената на колоните
-            if (str_contains($line, 'Ïîðú÷êà') || 
-                str_contains($line, 'Êëèåíò') ||
+            if (str_contains($line, 'Поръчка') || 
+                str_contains($line, 'Клиент') ||
                 str_contains($line, 'PODate')) {
                 continue;
             }
             
-            // Разделяне на колони по вертикални линии, но запазвайки празните полета
+            // Разделяне на колони по вертикални линии
             $columns = explode('|', $line);
             
-            // Премахване на първия и последния елемент (празни при правилна таблица)
+            // Премахване на първия и последния празен елемент
             if (count($columns) > 2) {
                 array_shift($columns); // премахване на първия празен
                 array_pop($columns);   // премахване на последния празен
             }
             
             // Почистване на колоните (премахване на излишни интервали)
-            $columns = array_map(function($col) {
-                return trim($col);
-            }, $columns);
+            $columns = array_map('trim', $columns);
             
-            // Очакваме минимум 11 колони според структурата
-            if (count($columns) >= 11) {
+            // Очакваме 12 колони според структурата
+            if (count($columns) >= 12) {
                 $tableData[] = [
-                    'order_reference' => $columns[0] ?? '',      // Поръчка
-                    'customer_name'   => $columns[1] ?? '',      // Клиент
-                    'po_date'         => $columns[2] ?? '',      // PODate
-                    'author'          => $columns[3] ?? '',      // Author
-                    'notes'           => $columns[4] ?? '',      // Забележка
-                    'chassis'         => $columns[5] ?? '',      // Шаси
-                    'phone'           => $columns[6] ?? '',      // Телефон
-                    'vehicle_name'    => $columns[7] ?? '',      // Автомобил
-                    'plate'           => $columns[8] ?? '',      // ДК No
-                    'monitor_code'    => $columns[9] ?? '',      // Код на монитора
-                    'mileage'         => $columns[10] ?? '',     // Изминати км
-                    'service_amt'     => $columns[11] ?? '',     // serviceamt
+                    'order_reference' => $columns[0] ?? '',      // Поръчка (0, 1, 2...)
+                    'customer_name'   => $columns[1] ?? '',      // Клиент (ПЕТЪР КИРИЛОВ, Иво...)
+                    'po_date'         => $columns[2] ?? '',      // PODate (07.12.2017 ?.)
+                    'author'          => $columns[3] ?? '',      // Author (ЕМИЛ БОГОЕВ)
+                    'notes'           => $columns[4] ?? '',      // Забележка (празно)
+                    'chassis'         => $columns[5] ?? '',      // Шаси (72368449)
+                    'phone'           => $columns[6] ?? '',      // Телефон (0888525030)
+                    'vehicle_name'    => $columns[7] ?? '',      // Автомобил (КСАНТИЯ)
+                    'plate'           => $columns[8] ?? '',      // ДК No (CA1358PC)
+                    'monitor_code'    => $columns[9] ?? '',      // Код на монитора (4)
+                    'mileage'         => $columns[10] ?? '',     // Изминати км (294200)
+                    'service_amt'     => $columns[11] ?? '',     // serviceamt (0)
                 ];
-            } else {
-                // ДЕБЪГ: Покажи какво не е наред
-                if (count($columns) > 0) {
-                    Log::info("VehicleImport: Непълен ред с " . count($columns) . " колони", $columns);
-                }
             }
         }
         
         return $tableData;
+    }
+
+    /**
+     * Търсене на клиент по име - ПО-ГЪВКАВ МЕТОД
+     */
+    private function findCustomerByName(string $customerName): ?Customer
+    {
+        $customerName = $this->fixAccessEncoding($customerName);
+        
+        if (empty($customerName)) {
+            return null;
+        }
+
+        // 1. Точен match
+        $customer = Customer::where('name', $customerName)->first();
+        if ($customer) {
+            return $customer;
+        }
+
+        // 2. LIKE търсене
+        $customer = Customer::where('name', 'LIKE', "%{$customerName}%")->first();
+        if ($customer) {
+            return $customer;
+        }
+
+        // 3. Търсене по първо име (ако има пълно име)
+        $nameParts = explode(' ', $customerName);
+        if (count($nameParts) > 1) {
+            $firstName = $nameParts[0];
+            $customer = Customer::where('name', 'LIKE', "%{$firstName}%")->first();
+            if ($customer) {
+                return $customer;
+            }
+        }
+
+        // 4. Търсене без интервали
+        $cleanName = preg_replace('/\s+/', '', $customerName);
+        $customers = Customer::all();
+        
+        foreach ($customers as $c) {
+            $cleanCustomerName = preg_replace('/\s+/', '', $c->name);
+            if (strcasecmp($cleanName, $cleanCustomerName) === 0) {
+                return $c;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -248,7 +179,7 @@ class VehicleImportSeeder extends Seeder
         $this->command->info('🚗 СТАРТИРАНЕ НА ИМПОРТ НА ПРЕВОЗНИ СРЕДСТВА...');
         $this->command->line(str_repeat('═', 70));
 
-        // Път към файла (АБСОЛЮТНО СЪЩИЯ КАТО В CustomerImportSeeder)
+        // Път към файла
         $filePath = base_path('old-database/Vehicle.txt');
         
         if (!file_exists($filePath)) {
@@ -261,25 +192,48 @@ class VehicleImportSeeder extends Seeder
         $this->command->info("📁 Файл: " . basename($filePath));
         $this->command->info("📊 Размер: " . round(strlen($content) / 1024, 2) . " KB");
         
-        // ТЕСТ НА КОНВЕРСИЯТА
-        $this->testEncodingFix();
-        
-        // ⭐⭐⭐ ТЕСТ НА РАЗДЕЛЯНЕТО НА МАРКА И МОДЕЛ ⭐⭐⭐
-        $this->testMakeModelSplit();
-        
         // ПАРСВАНЕ НА ТАБЛИЧНИЯ ФОРМАТ
-        $this->command->info("\n📋 ПАРСВАНЕ НА ТАБЛИЧЕН ФОРМАТ...");
+        $this->command->info("\n📋 ПАРСВАНЕ НА ASCII ТАБЛИЦАТА...");
         $tableData = $this->parseTableFormat($content);
         
         if (empty($tableData)) {
-            $this->command->error('❌ Не мога да извлека данни от табличния формат!');
-            $this->command->info('💡 Провери дали файлът има същата ASCII таблична структура като Customer.txt');
-            $this->command->info('   Структура трябва да бъде: | Колона1 | Колона2 | Колона3 | ... |');
+            $this->command->error('❌ Не мога да извлека данни от таблицата!');
             return;
         }
         
-        $this->command->info("✅ Успешно извлечени " . count($tableData) . " реда от таблицата");
-        $this->command->line(str_repeat('─', 70));
+        $this->command->info("✅ Успешно извлечени " . count($tableData) . " реда");
+        
+        // ДЕБЪГ: Покажи първите 3 реда КОРЕКТНО
+        $this->command->info("\n🔍 ПЪРВИ 3 РЕДА (коректно парсване):");
+        for ($i = 0; $i < min(3, count($tableData)); $i++) {
+            $row = $tableData[$i];
+            $this->command->info("Ред {$i}:");
+            $this->command->info("  Поръчка: " . ($row['order_reference'] ?? ''));
+            $this->command->info("  Клиент: '" . ($row['customer_name'] ?? '') . "'");
+            $this->command->info("  Телефон: " . ($row['phone'] ?? ''));
+            $this->command->info("  Рег. номер: " . ($row['plate'] ?? ''));
+            $this->command->info("  Автомобил: " . ($row['vehicle_name'] ?? ''));
+            $this->command->line("  " . str_repeat('-', 50));
+        }
+        
+        // ПРОВЕРКА ЗА КЛИЕНТИ В БАЗАТА
+        $this->command->info("\n👥 ПРОВЕРКА ЗА СЪВПАДЕНИЯ НА КЛИЕНТИ...");
+        
+        // Тествай първите 5 клиента дали съществуват
+        $testCustomers = [];
+        for ($i = 0; $i < min(5, count($tableData)); $i++) {
+            $customerName = $tableData[$i]['customer_name'];
+            $customerName = $this->fixAccessEncoding($customerName);
+            $testCustomers[] = $customerName;
+        }
+        
+        foreach ($testCustomers as $customerName) {
+            $found = Customer::where('name', $customerName)->exists() 
+                    ? '✅' 
+                    : (Customer::where('name', 'LIKE', "%{$customerName}%")->exists() ? '⚠️' : '❌');
+            
+            $this->command->info("{$found} Клиент: '{$customerName}'");
+        }
         
         // ⭐⭐⭐ ИМПОРТ НА ДАННИТЕ ⭐⭐⭐
         $this->command->info("\n⭐ ИМПОРТ НА ПРЕВОЗНИ СРЕДСТВА ⭐");
@@ -291,99 +245,119 @@ class VehicleImportSeeder extends Seeder
         // Идентификатор на импортната партида
         $importBatch = 'VEHICLE_IMPORT_' . date('Ymd_His');
         
-        foreach ($tableData as $index => $row) {
-            // Пропускане на заглавния ред, ако има
-            if ($index === 0 && (str_contains($row['customer_name'] ?? '', 'Клиент') || 
-                                 str_contains($row['order_reference'] ?? '', 'Поръчка'))) {
-                continue;
-            }
-            
-            try {
-                // 1. ФИКСИРАНЕ НА КОДИРОВКАТА
-                $customerName = $this->fixAccessEncoding($row['customer_name']);
-                $vehicleName = $this->fixAccessEncoding($row['vehicle_name']);
-                $author = $this->fixAccessEncoding($row['author']);
-                $notes = $this->fixAccessEncoding($row['notes']);
-                
-                // 2. ТЪРСЕНЕ НА КЛИЕНТА
-                $customer = Customer::where('name', 'LIKE', "%{$customerName}%")->first();
-                
-                if (!$customer) {
-                    $this->command->warn("  ⚠️  Ред {$index}: Клиент '{$customerName}' не е намерен. Пропускане.");
-                    $skippedCount++;
-                    Log::warning("VehicleImport: Клиент не намерен", ['name' => $customerName, 'row' => $index]);
-                    continue;
-                }
-                
-                // 3. РАЗДЕЛЯНЕ НА МАРКА И МОДЕЛ
-                list($make, $model) = $this->splitMakeAndModel($vehicleName);
-                
-                // 4. ПАРСВАНЕ НА ДАТАТА
-                $poDate = null;
-                if (!empty($row['po_date'])) {
-                    $dateStr = str_replace(' г.', '', trim($row['po_date']));
-                    $dateParts = explode('.', $dateStr);
-                    if (count($dateParts) === 3) {
-                        $poDate = \Carbon\Carbon::createFromDate($dateParts[2], $dateParts[1], $dateParts[0])->toDateString();
+        // За статистика
+        $missedCustomers = [];
+        $successfulImports = [];
+        
+        // Използвай DB::transaction за по-бързо вмъкване
+        DB::beginTransaction();
+        
+        try {
+            foreach ($tableData as $index => $row) {
+                try {
+                    // Пропускане на празни редове
+                    if (empty($row['customer_name']) && empty($row['plate'])) {
+                        $skippedCount++;
+                        continue;
                     }
-                }
-                
-                // 5. ПАРСВАНЕ НА ПРОБЕГА
-                $mileage = null;
-                if (!empty($row['mileage'])) {
-                    $mileage = (int) preg_replace('/[^0-9]/', '', $row['mileage']);
-                }
-                
-                // 6. ПРОВЕРКА ЗА ДУБЛИКАТИ
-                $existingVehicle = Vehicle::where('old_system_id', $row['order_reference'])
-                    ->orWhere('plate', $row['plate'])
-                    ->first();
-                
-                if ($existingVehicle) {
-                    $this->command->info("  ℹ️  Ред {$index}: Превозно средство вече съществува (ID: {$existingVehicle->id}). Пропускане.");
+                    
+                    // ФИКСИРАНЕ НА КОДИРОВКАТА
+                    $customerName = $this->fixAccessEncoding($row['customer_name']);
+                    $vehicleName = $this->fixAccessEncoding($row['vehicle_name']);
+                    $author = $this->fixAccessEncoding($row['author']);
+                    
+                    // ТЪРСЕНЕ НА КЛИЕНТА
+                    $customer = $this->findCustomerByName($customerName);
+                    
+                    if (!$customer) {
+                        $missedCustomers[$customerName] = ($missedCustomers[$customerName] ?? 0) + 1;
+                        $skippedCount++;
+                        continue;
+                    }
+                    
+                    // РАЗДЕЛЯНЕ НА МАРКА И МОДЕЛ
+                    list($make, $model) = $this->splitMakeAndModel($vehicleName);
+                    
+                    // ПАРСВАНЕ НА ДАТАТА (премахване на ' ?.')
+                    $poDate = null;
+                    if (!empty($row['po_date'])) {
+                        $dateStr = str_replace(' ?.', '', trim($row['po_date']));
+                        $dateParts = explode('.', $dateStr);
+                        if (count($dateParts) === 3) {
+                            $poDate = \Carbon\Carbon::createFromDate($dateParts[2], $dateParts[1], $dateParts[0])->toDateString();
+                        }
+                    }
+                    
+                    // ПАРСВАНЕ НА ПРОБЕГА
+                    $mileage = null;
+                    if (!empty($row['mileage']) && is_numeric($row['mileage'])) {
+                        $mileage = (int) $row['mileage'];
+                    }
+                    
+                    // ПРОВЕРКА ЗА ДУБЛИКАТИ
+                    $existingVehicle = Vehicle::where('old_system_id', $row['order_reference'])
+                        ->orWhere('plate', $row['plate'])
+                        ->first();
+                    
+                    if ($existingVehicle) {
+                        $skippedCount++;
+                        continue;
+                    }
+                    
+                    // ПОДГОТОВКА НА ДАННИТЕ
+                    $vehicleData = [
+                        'customer_id'     => $customer->id,
+                        'old_system_id'   => $row['order_reference'] ?: null,
+                        'import_batch'    => $importBatch,
+                        'chassis'         => $row['chassis'] ?: null,
+                        'vin'             => $row['chassis'] ?: null, // Шаси е VIN
+                        'plate'           => $row['plate'] ?: null,
+                        'make'            => $make ?: 'Unknown',
+                        'model'           => $model ?: '',
+                        'mileage'         => $mileage,
+                        'dk_no'           => $row['plate'] ?: null,
+                        'monitor_code'    => $row['monitor_code'] ?: null,
+                        'order_reference' => $row['order_reference'] ?: null,
+                        'po_date'         => $poDate,
+                        'author'          => $author ?: null,
+                        'notes'           => $row['notes'] ?: null,
+                        'is_active'       => true,
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ];
+                    
+                    // Създаване на записа
+                    DB::table('vehicles')->insert($vehicleData);
+                    $importedCount++;
+                    
+                    // Запомни успешните импорти за показване
+                    if (count($successfulImports) < 5) {
+                        $successfulImports[] = [
+                            'plate' => $row['plate'],
+                            'customer' => $customer->name,
+                            'vehicle' => $vehicleName
+                        ];
+                    }
+                    
+                    if ($importedCount % 100 === 0) {
+                        $this->command->info("  ✅ Импортирани {$importedCount} превозни средства...");
+                    }
+                    
+                } catch (\Exception $e) {
+                    Log::error("VehicleImport: Грешка на ред {$index}", [
+                        'row_data' => $row,
+                        'error' => $e->getMessage(),
+                    ]);
                     $skippedCount++;
-                    continue;
                 }
-                
-                // 7. ПОДГОТОВКА НА ДАННИТЕ
-                $vehicleData = [
-                    'customer_id'     => $customer->id,
-                    'old_system_id'   => $row['order_reference'],
-                    'import_batch'    => $importBatch,
-                    'chassis'         => $row['chassis'] ?: null,
-                    'vin'             => $row['chassis'] ?: null, // Шаси е VIN
-                    'plate'           => $row['plate'] ?: null,
-                    'make'            => $make,
-                    'model'           => $model,
-                    'mileage'         => $mileage,
-                    'dk_no'           => $row['plate'] ?: null, // ДК No е регистрационния номер
-                    'monitor_code'    => $row['monitor_code'] ?: null,
-                    'order_reference' => $row['order_reference'],
-                    'po_date'         => $poDate,
-                    'author'          => $author,
-                    'notes'           => $notes,
-                    'is_active'       => true,
-                ];
-                
-                // 8. СЪЗДАВАНЕ НА ЗАПИСА
-                Vehicle::create($vehicleData);
-                $importedCount++;
-                
-                $this->command->line("  ✅ Ред {$index}: Добавено {$row['plate']} за '{$customer->name}'");
-                
-            } catch (\Exception $e) {
-                $this->command->error("  ❌ Ред {$index}: Грешка - " . $e->getMessage());
-                $skippedCount++;
-                Log::error("VehicleImport: Грешка на ред {$index}", [
-                    'row_data' => $row,
-                    'error' => $e->getMessage()
-                ]);
             }
             
-            // Показване на прогрес на всеки 50 реда
-            if (($index + 1) % 50 === 0) {
-                $this->command->info("    📊 Обработени " . ($index + 1) . " от {$totalRows} реда...");
-            }
+            DB::commit();
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->command->error("❌ Грешка при импорта: " . $e->getMessage());
+            return;
         }
         
         // ⭐⭐⭐ РЕЗЮМЕ НА ИМПОРТА ⭐⭐⭐
@@ -395,21 +369,47 @@ class VehicleImportSeeder extends Seeder
         $this->command->info("   Общо редове: {$totalRows}");
         $this->command->info("   Импортна партида: {$importBatch}");
         
-        if ($skippedCount > 0) {
-            $this->command->warn("💡 Провери logs/laravel.log за повече детайли за пропуснатите записи.");
+        // Покажи няколко успешни импорта
+        if (!empty($successfulImports)) {
+            $this->command->info("\n✅ УСПЕШНИ ИМПОРТИ (пример):");
+            foreach ($successfulImports as $import) {
+                $this->command->info("   🚗 {$import['plate']} - {$import['vehicle']} за '{$import['customer']}'");
+            }
+        }
+        
+        // СТАТИСТИКА ЗА ПРОПУСНАТИТЕ КЛИЕНТИ
+        if (!empty($missedCustomers)) {
+            $this->command->warn("\n⚠️  ПРОПУСНАТИ КЛИЕНТИ (топ 10):");
+            arsort($missedCustomers);
+            $topMissed = array_slice($missedCustomers, 0, 10, true);
+            
+            foreach ($topMissed as $customerName => $count) {
+                $this->command->line("   - '{$customerName}': {$count} пъти");
+            }
+            
+            $totalMissed = array_sum($missedCustomers);
+            $this->command->info("\n📈 Общо пропуснати клиенти: {$totalMissed} от {$skippedCount} пропуснати записи");
+            
+            // ДИРЕКТНА ПРОВЕРКА: Дай пример за един клиент който не се намира
+            if (!empty($missedCustomers)) {
+                $exampleCustomer = array_key_first($missedCustomers);
+                $this->command->info("\n🔍 ПРИМЕР ЗА ПРОВЕРКА:");
+                $this->command->info("   Търся клиент: '{$exampleCustomer}'");
+                
+                // Проверка в базата
+                $foundExact = Customer::where('name', $exampleCustomer)->exists();
+                $foundLike = Customer::where('name', 'LIKE', "%{$exampleCustomer}%")->exists();
+                
+                $this->command->info("   Точно съвпадение: " . ($foundExact ? '✅' : '❌'));
+                $this->command->info("   Частично съвпадение: " . ($foundLike ? '✅' : '❌'));
+                
+                if (!$foundExact && !$foundLike) {
+                    $this->command->info("\n💡 Проблемът е, че клиентите от Vehicle.txt не съвпадат с тези в базата!");
+                    $this->command->info("   Може да има разлики в имената или клиентите да не са импортирани.");
+                }
+            }
         }
         
         $this->command->line(str_repeat('═', 70));
-    }
-
-    /**
-     * Помощна функция за съкращаване на текст
-     */
-    private function truncate(string $text, int $length = 25): string
-    {
-        if (mb_strlen($text, 'UTF-8') <= $length) {
-            return $text;
-        }
-        return mb_substr($text, 0, $length - 3, 'UTF-8') . '...';
     }
 }

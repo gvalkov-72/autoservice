@@ -1,642 +1,439 @@
 <?php
+// database/seeders/CustomerImportSeeder.php
+// АКТУАЛИЗИРАН ЗА TXT ФАЙЛОВЕ С ТАБЛИЧЕН ФОРМАТ
 
 namespace Database\Seeders;
 
-use App\Models\Customer;
 use Illuminate\Database\Seeder;
+use App\Models\Customer;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class CustomerImportSeeder extends Seeder
 {
     /**
-     * Автоматично определя типа на клиента според името
-     * Правила:
-     * - Ако има "ЕООД", "ООД", "АД", "ET", "EAD" → company
-     * - Ако има "ЕТ" (Единноличен търговец) → company  
-     * - Ако името е само с големи букви и няма фирмени обозначения → company
-     * - Ако има собствено име (Иван Иванов) → individual
+     * Run the database seeds.
      */
-    private function determineCustomerType(string $name): string
+    public function run(): void
     {
-        $name = trim($name);
-        if (empty($name)) return 'company';
+        $this->command->info('========================================');
+        $this->command->info('🚀 СТАРТИРАНЕ НА ИМПОРТ ОТ TXT ФАЙЛ');
+        $this->command->info('========================================');
         
-        // СПИСЪК С ФИРМЕНИ ОБОЗНАЧЕНИЯ
-        $companyKeywords = [
-            // Български фирмени форми
-            'ЕООД', 'ООД', 'АД', 'ЕТ', 'ЕАД', 'СД', 'КДА', 'КД',
-            'EОOD', 'OOD', 'AD', 'ET', 'EAD', 'SD', 'KDA', 'KD',
-            
-            // Международни фирмени форми (в кирилица)
-            'ЛТД', 'ИНК', 'КОРП', 'ГМБХ', 'АГ',
-            'LTD', 'INC', 'CORP', 'GMBH', 'AG',
-            
-            // Други обозначения за фирми
-            'КОМПАНИЯ', 'КОМПАНИ', 'ФИРМА', 'ПРЕДПРИЯТИЕ',
-            'АСОЦИАЦИЯ', 'СДРУЖЕНИЕ', 'ФОНДАЦИЯ', 'ЦЕНТЪР',
-            'ИНДУСТРИ', 'ИНДУСТРИЯ', 'ТЪРГОВИЯ', 'ТЪРГОВСКО',
-            'ПРОИЗВОДСТВО', 'СЕРВИЗ', 'АВТОСЕРВИЗ', 'СТРОИТЕЛ',
-            'ИНЖЕНЕРИНГ', 'КОНСУЛТАНТ', 'КОНСУЛТИНГ',
-            'И КО', '& КО', 'И С-И', 'И СИНОВЕ',
-        ];
+        $filePath = base_path('old-database/customer.txt');
         
-        // Проверка за фирмени обозначения в името
-        $upperName = mb_strtoupper($name, 'UTF-8');
-        
-        foreach ($companyKeywords as $keyword) {
-            if (str_contains($upperName, $keyword)) {
-                return 'company';
-            }
+        // Проверка за файл
+        if (!file_exists($filePath)) {
+            $this->command->error('❌ ФАЙЛЪТ НЕ Е НАМЕРЕН: customer.txt');
+            $this->command->info('📂 Моля поставете customer.txt в папка: ' . dirname($filePath));
+            $this->command->info('💡 Файлът трябва да е в табличен формат с вертикални разделители "|"');
+            return;
         }
         
-        // Проверка за ИН (идентификационен номер) в името
-        if (preg_match('/\bИН\s*\d{9,13}\b/ui', $name) ||
-            preg_match('/\bEIK\s*\d{9,13}\b/ui', $name)) {
-            return 'company';
+        // Прочитане на целия файл
+        $content = file_get_contents($filePath);
+        if (empty($content)) {
+            $this->command->error('❌ ФАЙЛЪТ Е ПРАЗЕН ИЛИ НЕ МОЖЕ ДА БЪДЕ ПРОЧЕТЕН');
+            return;
         }
         
-        // Правила за определяне на индивидуален клиент
-        // Ако името изглежда като пълно име на човек (2-3 думи, първата дума започва с главна буква)
-        $words = preg_split('/\s+/', $name);
-        $wordCount = count($words);
-        
-        if ($wordCount >= 2 && $wordCount <= 4) {
-            // Проверка дали първата дума изглежда като собствено име
-            $firstName = $words[0];
-            
-            // Често срещани български имена
-            $commonFirstNames = [
-                'Иван', 'Георги', 'Димитър', 'Петър', 'Николай', 'Стоян',
-                'Васил', 'Кръстьо', 'Атанас', 'Стефан', 'Боян', 'Калин',
-                'Мария', 'Ивана', 'Елена', 'Гергана', 'Диана', 'Силвия',
-                'Петя', 'Весела', 'Радка', 'Цветана', 'Лилия', 'Румяна',
-                'Александър', 'Владимир', 'Цветан', 'Красимир', 'Пламен',
-                'Теодора', 'Йорданка', 'Милена', 'Надежда', 'Снежана',
-            ];
-            
-            // Проверка дали първата дума е обикновено име
-            foreach ($commonFirstNames as $commonName) {
-                if (mb_strtoupper($firstName, 'UTF-8') === mb_strtoupper($commonName, 'UTF-8')) {
-                    return 'individual';
-                }
-            }
-            
-            // Ако първата дума завършва на "ов", "ев", "ин", "ска", "ова" → вероятно е фамилия
-            if (preg_match('/(ов|ев|ин|ска|ова)$/ui', $firstName)) {
-                // Но проверка дали не е фирма като "Петков и Ко"
-                if (!str_contains($upperName, ' И КО') && 
-                    !str_contains($upperName, ' & КО') &&
-                    !str_contains($upperName, ' И СИНОВЕ')) {
-                    return 'individual';
-                }
-            }
-        }
-        
-        // Ако името е само с големи букви и не е очевидно лице → company
-        if ($name === mb_strtoupper($name, 'UTF-8') && 
-            !preg_match('/\b(г-н|г-жа|господин|госпожа|д-р|инж\.|арх\.)\b/ui', $name)) {
-            return 'company';
-        }
-        
-        // Ако има титла (г-н, г-жа, д-р) → individual
-        if (preg_match('/\b(г-н|г-жа|господин|госпожа|д-р|инж\.|арх\.)\b/ui', $name)) {
-            return 'individual';
-        }
-        
-        // По подразбиране връщаме company (по-често срещано в бизнес системи)
-        return 'company';
-    }
-    
-    /**
-     * Тестване на определянето на типа
-     */
-    private function testTypeDetermination(): void
-    {
-        $this->command->info('🧪 ТЕСТ НА ОПРЕДЕЛЯНЕТО НА ТИПА:');
-        
-        $testCases = [
-            // ФИРМИ
-            'ШАТРОМ ЕООД' => 'company',
-            'ТЕРЗИД ЕООД' => 'company',
-            'Е.Т.Е. ЕООД' => 'company',
-            'ЛИНДНЕР БЪЛГАРИЯ ЕООД' => 'company',
-            'ЖАР ЕООД' => 'company',
-            'КВЯТ ООД' => 'company',
-            'АВТОСТЪКЛА ООД' => 'company',
-            'ИВАН ИВАНОВ ЕТ' => 'company',
-            'ГЕОРГИ ГЕОРГИЕВ АД' => 'company',
-            'ТЕХНОИНДУСТРИЯ ЛТД' => 'company',
-            'СОФТУЕРНА КОМПАНИЯ ИНК' => 'company',
-            'ПЕТКОВ И КО' => 'company',
-            'СЕРВИЗ ЦВЕТАН' => 'company',
-            
-            // ЧАСТНИ ЛИЦА
-            'Иван Иванов' => 'individual',
-            'Георги Петров' => 'individual',
-            'Мария Стоянова' => 'individual',
-            'г-н Димитър Димитров' => 'individual',
-            'г-жа Елена Георгиева' => 'individual',
-            'д-р Стоян Стоянов' => 'individual',
-            'инж. Петър Петров' => 'individual',
-            'Цветан Сервиз' => 'individual',
-            
-            // СПОРНИ СЛУЧАИ
-            'ИВАНОВ' => 'company', // Само с големи букви
-            'ПЕТКОВ' => 'company', // Само с големи букви
-        ];
-        
-        $passed = 0;
-        $total = count($testCases);
-        
-        $this->command->line("📋 Тестови случаи ($total общо):");
-        
-        foreach ($testCases as $input => $expected) {
-            $result = $this->determineCustomerType($input);
-            $isMatch = ($result === $expected);
-            
-            if ($isMatch) {
-                $passed++;
-                $this->command->line("✅ " . $this->truncate($input, 25) . 
-                                   " → " . $result);
-            } else {
-                $this->command->line("❌ " . $this->truncate($input, 25) . 
-                                   " → " . $result . " (очаквано: $expected)");
-            }
-        }
-        
-        $this->command->line(str_repeat('─', 70));
-        $percentage = round(($passed / $total) * 100, 1);
-        $this->command->info("📊 Резултат: $passed от $total теста минаха успешно ($percentage%)");
-        
-        if ($passed < $total * 0.8) {
-            $this->command->warn("⚠️  Има значителни разминавания в определянето на типа!");
-            $this->command->info("💡 Можеш да коригираш правилата в метода determineCustomerType()");
-        }
-    }
-    
-    /**
-     * Конвертира Access Mojibake текст към правилна кирилица
-     * Специално за Access българска кирилица
-     */
-    private function fixAccessEncoding(string $text): string
-    {
-        $text = trim($text);
-        if (empty($text)) return $text;
-        
-        // Ако вече е правилна кирилица, върни както е
-        if (preg_match('/[А-Яа-яЁё]/u', $text)) {
-            return $text;
-        }
-        
-        // ПОПЪЛНЕН МАПИНГ за точна конверсия
-        $accessFixMap = [
-            // Основни букви
-            'Ê' => 'К', 'à' => 'а', 'ë' => 'л', 'î' => 'о', 'ÿ' => 'я',
-            'á' => 'н', 'Ï' => 'П', 'å' => 'е', '÷' => 'ч', 'í' => 'и',
-            'ð' => 'р', 'ñ' => 'с', 'è' => 'и',
-            
-            // Главни букви
-            'Ø' => 'Ш', 'À' => 'А', 'Ò' => 'Т', 'Ð' => 'Р', 'Î' => 'О',
-            'Ì' => 'М', 'Å' => 'Е', 'Õ' => 'Х', 'Ô' => 'Ф', 'Ö' => 'Ц',
-            '×' => 'Ч', 'Ù' => 'Щ', 'Ú' => 'Ъ', 'Ü' => 'Ь', 'Ý' => 'Э',
-            'Þ' => 'Ю', 'ß' => 'Я', 'Ç' => 'З', 'È' => 'И', 'É' => 'Й',
-            'Ë' => 'Л', 'Í' => 'Н', 'Ñ' => 'С', 'Ó' => 'У', 'Â' => 'В',
-            'Ã' => 'Г', 'Ä' => 'Д', 'Æ' => 'Ж', 'Á' => 'Б',
-            
-            // Малки букви
-            'ú' => 'ъ', 'û' => 'ы', 'ü' => 'ь', 'ý' => 'э', 'þ' => 'ю',
-            'ó' => 'у', 'ò' => 'т', 'õ' => 'х', 'ô' => 'ф', 'ö' => 'ц',
-            'æ' => 'ж', 'ç' => 'з', 'é' => 'й', 'ê' => 'к', 'ì' => 'м',
-            'ï' => 'п', 'â' => 'в', 'ã' => 'г', 'ä' => 'д', 'å' => 'е',
-            'á' => 'б', 'ò' => 'т', 'õ' => 'х',
-            
-            // Специфични за "Бизнес" и "Минчев"
-            'è' => 'и', 'ñ' => 'с', // за "Бизнес"
-            'é' => 'н', 'â' => 'в', // за "Минчев" - 'é' трябва да е 'н', не 'й'
-        ];
-        
-        $fixed = strtr($text, $accessFixMap);
-        
-        // СПЕЦИАЛНИ ПОПРАВКИ
-        $fixed = preg_replace('/Калояи/u', 'КалоЯн', $fixed);
-        $fixed = preg_replace('/Печеиярски/u', 'Печенярски', $fixed);
-        $fixed = preg_replace('/Стефаи/u', 'Стефан', $fixed);
-        $fixed = preg_replace('/Миичев/u', 'Минчев', $fixed);
-        $fixed = preg_replace('/Бизиес/u', 'Бизнес', $fixed);
-        $fixed = preg_replace('/ШАТРОМ  ЕООД/u', 'ШАТРОМ ЕООД', $fixed);
-        
-        return $fixed;
-    }
-    
-    /**
-     * Тестване на encoding конверсията
-     */
-    private function testEncodingFix(): void
-    {
-        $this->command->info('🧪 ТЕСТ НА КОНВЕРСИЯТА:');
-        
-        $testCases = [
-            'Êàëîÿí Ïå÷åíÿðñêè' => 'КАЛОЯН ПЕЧЕНЯРСКИ',
-            'ØÀÒÐÎÌ  ÅÎÎÄ' => 'ШАТРОМ ЕООД',
-            'ÒÅÐÇÈÄ ÅÎÎÄ' => 'ТЕРЗИД ЕООД',
-            'Å.Ò.Å. ÅÎÎÄ' => 'Е.Т.Е. ЕООД',
-            'ËÈÍÄÍÅÐ ÁÚËÃÀÐÈß ÅÎÎÄ' => 'ЛИНДНЕР БЪЛГАРИЯ ЕООД',
-            'Ñòåôàí Ìèí÷åâ' => 'Стефан Минчев',
-            'óë. " Áèçíåñ Ïàðê Ñîôèÿ "' => 'ул. " Бизнес Парк София "',
-            'Áèçíåñ' => 'Бизнес',
-            'Ïàðê' => 'Парк',
-            'Ñîôèÿ' => 'София',
-        ];
-        
-        $passed = 0;
-        $total = count($testCases);
-        
-        foreach ($testCases as $input => $expected) {
-            $result = $this->fixAccessEncoding($input);
-            $resultUpper = mb_strtoupper($result, 'UTF-8');
-            $expectedUpper = mb_strtoupper($expected, 'UTF-8');
-            
-            $isMatch = ($resultUpper === $expectedUpper);
-            
-            if ($isMatch) {
-                $passed++;
-                $this->command->line("✅ " . $this->truncate($input, 25) . 
-                                   " → " . $this->truncate($result, 25));
-            } else {
-                $this->command->line("❌ " . $this->truncate($input, 25) . 
-                                   " → " . $this->truncate($result, 25));
-                $this->command->line("   Очаквано: " . $expected);
-            }
-        }
-        
-        $this->command->line(str_repeat('─', 70));
-        $this->command->info("📊 Резултат: $passed от $total теста минаха успешно");
-    }
-    
-    /**
-     * Парсва табличен текст формат с пајпове
-     * Формат: | Number | Customer-Name | Customer-Address-1 | ...
-     */
-    private function parseTableFormat(string $content): array
-    {
+        // Разделяне на редове
         $lines = explode("\n", $content);
-        $data = [];
         
-        $headerLine = null;
-        $headers = [];
+        // Премахване на празните редове
+        $lines = array_filter($lines, function($line) {
+            return trim($line) !== '';
+        });
         
-        // 1. Намери заглавния ред (този с имената на колоните)
-        foreach ($lines as $line) {
+        if (count($lines) < 3) {
+            $this->command->error('❌ ФАЙЛЪТ НЕ СЪДЪРЖА ДОСТАТЪЧНО ДАННИ');
+            return;
+        }
+        
+        // Намиране на заглавния ред (този с имената на колоните)
+        $headerLineIndex = null;
+        $headerLine = '';
+        
+        foreach ($lines as $index => $line) {
             if (strpos($line, '|   Number   |') !== false || 
-                strpos($line, '| Number |') !== false) {
-                $headerLine = $line;
+                strpos($line, '| Number |') !== false ||
+                preg_match('/\|\s*Number\s*\|/i', $line)) {
+                $headerLineIndex = $index;
+                $headerLine = trim($line);
                 break;
             }
         }
         
-        if (!$headerLine) {
-            $this->command->error('❌ Не мога да намеря заглавния ред с колоните!');
-            return [];
-        }
-        
-        // 2. Извлечи заглавките
-        // Премахни началния и крайния '|'
-        $headerLine = trim($headerLine, "| \t\n\r\0\x0B");
-        // Раздели по '|' и trim-ни всяка колона
-        $rawHeaders = array_map('trim', explode('|', $headerLine));
-        
-        // 3. Мапирай заглавките към стандартни имена
-        $headerMapping = [
-            'Number' => 'Number',
-            'Customer-Name' => 'Customer-Name',
-            'Customer-Address-1' => 'Customer-Address-1',
-            'Customer-Address-2' => 'Customer-Address-2',
-            'Customer-MOL' => 'Customer-MOL',
-            'Customer-Taxno' => 'Customer-Taxno',
-            'Customer-DocType' => 'Customer-DocType',
-            'Receiver' => 'Receiver',
-            'Receiver Details' => 'Receiver Details',
-            'Customer-Bulstat' => 'Customer-Bulstat',
-            'Telno' => 'Telno',
-            'Faxno' => 'Faxno',
-            'E-mail' => 'E-mail',
-            'ResAddress1' => 'ResAddress1',
-            'ResAddress2' => 'ResAddress2',
-            'eidate' => 'eidate',
-            'include' => 'include',
-            'active' => 'active',
-            'customer' => 'customer',
-            'supplier' => 'supplier',
-            'Contact' => 'Contact',
-            'partida' => 'partida',
-            'bulstatletter' => 'bulstatletter',
-        ];
-        
-        $headers = [];
-        foreach ($rawHeaders as $rawHeader) {
-            $normalized = trim(preg_replace('/\s+/', ' ', $rawHeader));
-            // Опитай да намериш съответствие
-            foreach ($headerMapping as $key => $value) {
-                if (stripos($normalized, $key) !== false) {
-                    $headers[] = $key;
-                    break;
-                }
-            }
-        }
-        
-        $this->command->info("✅ Намерени заглавки: " . count($headers));
-        $this->command->info("📋 Заглавки: " . implode(', ', array_slice($headers, 0, 5)) . '...');
-        
-        // 4. Обработка на данните
-        $inDataSection = false;
-        
-        foreach ($lines as $line) {
-            $line = trim($line);
-            
-            // Пропускай разделителните редове
-            if (strpos($line, '---') === 0 || strpos($line, '===') === 0) {
-                if ($inDataSection) {
-                    $inDataSection = false; // Край на секцията с данни
-                } else {
-                    $inDataSection = true; // Начало на секцията с данни
-                }
-                continue;
-            }
-            
-            // Пропускай празни редове или заглавни редове
-            if (empty($line) || strpos($line, '|   Number   |') !== false) {
-                continue;
-            }
-            
-            // Само редове с данни (започват с '|')
-            if (strpos($line, '|') === 0 && $inDataSection) {
-                // Премахни '|' в началото и края
-                $line = trim($line, "| \t\n\r\0\x0B");
-                
-                // Раздели по '|' - важно: запази празните стойности
-                $columns = explode('|', $line);
-                
-                // Trim-ни всяка колона
-                $columns = array_map(function($col) {
-                    return trim($col);
-                }, $columns);
-                
-                // Ако имаме по-малко колони от заглавките, добави празни
-                while (count($columns) < count($headers)) {
-                    $columns[] = '';
-                }
-                
-                // Ако имаме повече колони, съкрати
-                $columns = array_slice($columns, 0, count($headers));
-                
-                // Създай асоциативен масив
-                if (count($columns) === count($headers)) {
-                    $rowData = array_combine($headers, $columns);
-                    
-                    // ⭐⭐⭐ ВАЖНО: АВТОМАТИЧНО ОПРЕДЕЛЯНЕ НА ТИПА ⭐⭐⭐
-                    $customerName = $rowData['Customer-Name'] ?? '';
-                    $rowData['_auto_type'] = $this->determineCustomerType($customerName);
-                    
-                    // Добави към данните само ако има Number
-                    if (!empty($rowData['Number'])) {
-                        $data[] = $rowData;
+        if ($headerLineIndex === null) {
+            // Ако не намерим точно "Number", търсим първия ред, който изглежда като заглавка
+            foreach ($lines as $index => $line) {
+                if (strpos($line, '|') !== false && substr_count($line, '|') > 3) {
+                    // Проверяваме дали редът не е разделителна линия
+                    if (!preg_match('/^[\|\-\s]+$/', $line)) {
+                        $headerLineIndex = $index;
+                        $headerLine = trim($line);
+                        $this->command->warn('⚠️ Намерен е възможен заглавен ред по брой на колоните');
+                        break;
                     }
                 }
             }
         }
         
-        return $data;
-    }
-
-    public function run(): void
-    {
-        $this->command->info('🚀 ИМПОРТ ОТ ACCESS С АВТОМАТИЧНО ОПРЕДЕЛЯНЕ НА ТИПА');
-        $this->command->line(str_repeat('═', 70));
-        
-        // Път към файла
-        $filePath = base_path('old-database/Customer.txt');
-        
-        if (!file_exists($filePath)) {
-            $this->command->error("❌ Файлът не е намерен: $filePath");
+        if ($headerLineIndex === null) {
+            $this->command->error('❌ НЕ МОГА ДА НАМЕРЯ ЗАГЛАВИЯТА НА КОЛОНИТЕ');
+            $this->command->info('🔍 Първите 5 реда:');
+            foreach (array_slice($lines, 0, 5) as $i => $line) {
+                $this->command->info("   [{$i}]: " . substr(trim($line), 0, 100));
+            }
             return;
         }
         
-        // Прочитане на файла
-        $content = file_get_contents($filePath);
-        $this->command->info("📁 Файл: " . basename($filePath));
-        $this->command->info("📊 Размер: " . round(strlen($content) / 1024, 2) . " KB");
+        $this->command->info('✅ Намерени са заглавния ред на ред ' . ($headerLineIndex + 1));
         
-        // ТЕСТ НА КОНВЕРСИЯТА
-        $this->testEncodingFix();
-        
-        // ⭐⭐⭐ ТЕСТ НА ОПРЕДЕЛЯНЕТО НА ТИПА ⭐⭐⭐
-        $this->testTypeDetermination();
-        
-        // ПАРСВАНЕ НА ТАБЛИЧНИЯ ФОРМАТ
-        $this->command->info("\n📋 ПАРСВАНЕ НА ТАБЛИЧЕН ФОРМАТ...");
-        $tableData = $this->parseTableFormat($content);
-        
-        if (empty($tableData)) {
-            $this->command->error('❌ Не мога да извлека данни от табличния формат!');
-            $this->command->info('💡 Експортирай от Access като "Text File" с разделител Tab, не като "Formatted Text"');
-            return;
+        // Извличане на имената на колоните
+        $headers = $this->extractHeaders($headerLine);
+        $this->command->info('📋 Брой колони: ' . count($headers));
+        $this->command->info('🔍 Колони: ' . implode(', ', array_slice($headers, 0, 10)));
+        if (count($headers) > 10) {
+            $this->command->info('... и още ' . (count($headers) - 10) . ' колони');
         }
         
-        $this->command->info("✅ Намерени записи: " . count($tableData));
+        // Взимане само на редовете с данни (след заглавния ред)
+        $dataLines = array_slice($lines, $headerLineIndex + 1); // Започваме от следващия ред
         
-        // ⭐⭐⭐ СТАТИСТИКА ЗА ТИПОВЕТЕ ПРЕДИ ИМПОРТ ⭐⭐⭐
-        $typeStats = ['company' => 0, 'individual' => 0];
-        foreach ($tableData as $row) {
-            $type = $row['_auto_type'] ?? 'company';
-            $typeStats[$type]++;
-        }
+        $totalCount = 0;
+        $importedCount = 0;
+        $skippedCount = 0;
+        $errorCount = 0;
         
-        $this->command->info("📊 Очаквано разпределение на типовете:");
-        $this->command->info("   • Фирми (company): {$typeStats['company']}");
-        $this->command->info("   • Частни лица (individual): {$typeStats['individual']}");
+        $startTime = microtime(true);
         
-        $imported = 0;
-        $errors = [];
-        
-        $this->command->info("\n📥 ЗАПОЧВАМ ИМПОРТ...");
-        $progressBar = $this->command->getOutput()->createProgressBar(count($tableData));
-        $progressBar->start();
-        
-        // ИМПОРТ НА ДАННИТЕ
-        foreach ($tableData as $index => $rowData) {
-            $progressBar->advance();
+        // Обработка на всеки ред с данни
+        foreach ($dataLines as $lineIndex => $line) {
+            $line = trim($line);
+            
+            // Пропускаме разделителните линии (съдържащи само --- или |)
+            if (strpos($line, '---') !== false && strpos($line, '|') !== false && 
+                preg_match('/^[\|\-\s]+$/', $line)) {
+                continue;
+            }
+            
+            // Пропускаме празни редове или редове без данни
+            if (empty($line) || $line === '|' || strlen($line) < 5) {
+                continue;
+            }
+            
+            // Проверка дали това е разделителна линия
+            if (preg_match('/^[\|\-\=\s]+$/', $line)) {
+                continue;
+            }
+            
+            $totalCount++;
             
             try {
-                $customerData = $this->prepareCustomerData($rowData);
+                // Разделяне на колоните по вертикална черта
+                $columns = $this->parseTableRow($line);
                 
-                // ПРОВЕРКА ЗА ЗАДЪЛЖИТЕЛНИ ПОЛЕТА
-                if (empty($customerData['name'])) {
-                    $errors[] = "Запис {$rowData['Number']}: Липсва име";
+                // Проверка дали броят на колоните съвпада с броя на заглавките
+                if (count($columns) !== count($headers)) {
+                    $this->command->warn("⚠️ Ред {$totalCount}: Брой колони (" . count($columns) . ") не съвпада с брой заглавки (" . count($headers) . ")");
+                    
+                    // Опитваме се да поправим като добавяме/премахваме колони
+                    if (count($columns) < count($headers)) {
+                        while (count($columns) < count($headers)) {
+                            $columns[] = '';
+                        }
+                    } else {
+                        $columns = array_slice($columns, 0, count($headers));
+                    }
+                }
+                
+                // Създаване на асоциативен масив
+                $data = [];
+                foreach ($headers as $index => $header) {
+                    $data[$header] = $columns[$index] ?? '';
+                }
+                
+                // Подготовка на данните за вмъкване
+                $customerData = [
+                    'old_id' => $this->clean($data['Number'] ?? ''),
+                    'customer_number' => $this->clean($data['Number'] ?? ''),
+                    'name' => $this->clean($data['Customer-Name'] ?? $data['Customer-Name'] ?? 'Нов клиент ' . $totalCount),
+                    'email' => $this->validateEmail($data['E-mail'] ?? $data['Email'] ?? ''),
+                    'phone' => $this->cleanPhone($data['Telno'] ?? $data['Teho'] ?? ''),
+                    'fax' => $this->cleanPhone($data['Faxno'] ?? ''),
+                    'address' => $this->clean($data['Customer-Address-1'] ?? $data['Customer-Address-1'] ?? ''),
+                    'address_2' => $this->clean($data['Customer-Address-2'] ?? $data['Customer-Address-2'] ?? ''),
+                    'res_address_1' => $this->clean($data['ResAddress1'] ?? ''),
+                    'res_address_2' => $this->clean($data['ResAddress2'] ?? ''),
+                    'contact_person' => $this->clean($data['Contact'] ?? $data['Customer-MOL'] ?? ''),
+                    'mol' => $this->clean($data['Customer-MOL'] ?? ''),
+                    'tax_number' => $this->clean($data['Customer-Taxno'] ?? ''),
+                    'bulstat' => $this->clean($data['Customer-Bulstat'] ?? ''),
+                    'doc_type' => $this->clean($data['Customer-DocType'] ?? ''),
+                    'receiver' => $this->clean($data['Receiver'] ?? ''),
+                    'receiver_details' => $this->clean($data['Receiver Details'] ?? ''),
+                    'eidale' => $this->clean($data['eidate'] ?? $data['eidale'] ?? ''),
+                    'include_in_mailing' => $this->parseBool($data['include'] ?? '1'),
+                    'partida' => $this->clean($data['partida'] ?? ''),
+                    'bulsial_letter' => $this->clean($data['bulstatletter'] ?? $data['bulsialletter'] ?? ''),
+                    'is_active' => $this->parseBool($data['active'] ?? '1'),
+                    'is_customer' => $this->parseBool($data['customer'] ?? '1'),
+                    'is_supplier' => $this->parseBool($data['supplier'] ?? '0'),
+                    'notes' => $this->clean($data['Note'] ?? ''),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ];
+                
+                // Проверка за дублиране
+                if (!empty($customerData['old_id'])) {
+                    $existing = Customer::where('old_id', $customerData['old_id'])->first();
+                    if ($existing) {
+                        $this->command->warn("⚠️ Пропускане на дублиран запис: " . $customerData['old_id']);
+                        $skippedCount++;
+                        continue;
+                    }
+                }
+                
+                // Проверка за празни имена
+                if (empty($customerData['name']) || $customerData['name'] === 'Нов клиент ' . $totalCount) {
+                    $this->command->warn("⚠️ Ред {$totalCount}: Липсва име на клиент, пропускам...");
+                    $skippedCount++;
                     continue;
                 }
                 
-                // СЪЗДАЙ КЛИЕНТА
+                // Създаване на клиента
                 Customer::create($customerData);
-                $imported++;
+                $importedCount++;
+                
+                // Показване на прогрес
+                if ($importedCount % 50 == 0) {
+                    $this->command->info("📦 Импортирани: {$importedCount} клиенти...");
+                }
+                
+                // Показване на примерни данни за първите 3 записа
+                if ($importedCount <= 3) {
+                    $this->command->info("   Пример {$importedCount}: #{$customerData['old_id']} - {$customerData['name']}");
+                }
                 
             } catch (\Exception $e) {
-                $errors[] = "Запис {$rowData['Number']}: " . $e->getMessage();
-                Log::error('Import error', [
-                    'number' => $rowData['Number'] ?? 'unknown',
+                $errorCount++;
+                Log::error('Грешка при импорт на клиент', [
+                    'row' => $totalCount,
+                    'line' => $line,
                     'error' => $e->getMessage()
                 ]);
+                
+                if ($errorCount <= 5) {
+                    $this->command->error("❌ Грешка при ред {$totalCount}: " . $e->getMessage());
+                    if ($errorCount === 1) {
+                        $this->command->error("   Примерен ред: " . substr($line, 0, 150));
+                    }
+                }
             }
         }
         
-        $progressBar->finish();
+        $endTime = microtime(true);
+        $executionTime = round($endTime - $startTime, 2);
         
-        // РЕЗУЛТАТИ
-        $this->command->line("\n");
-        $this->command->info('✅ ИМПОРТЪТ ЗАВЪРШИ');
-        $this->command->line(str_repeat('═', 70));
-        $this->command->info("🟢 Успешно импортирани: $imported клиенти");
+        // Извеждане на резултати
+        $this->command->info('========================================');
+        $this->command->info('📊 РЕЗУЛТАТИ ОТ ИМПОРТА:');
+        $this->command->info('========================================');
+        $this->command->info("✅ УСПЕШНО ИМПОРТИРАНИ: {$importedCount} клиенти");
+        $this->command->info("📝 ОБЩО РЕДОВЕ В TXT: {$totalCount}");
+        $this->command->info("⏭️  ПРОПУСНАТИ (дубликати/празни): {$skippedCount}");
+        $this->command->info("❌ ГРЕШКИ: {$errorCount}");
+        $this->command->info("⏱️  ВРЕМЕ ЗА ИЗПЪЛНЕНИЕ: {$executionTime} секунди");
         
-        if (!empty($errors)) {
-            $this->command->warn("🟡 Грешки: " . count($errors));
-            foreach (array_slice($errors, 0, 5) as $error) {
-                $this->command->line("   • $error");
-            }
-            if (count($errors) > 5) {
-                $this->command->line("   ... и още " . (count($errors) - 5) . " грешки");
+        if ($errorCount > 0) {
+            $this->command->warn("⚠️  Има грешки при импорта. Проверете laravel.log за повече детайли.");
+        }
+        
+        if ($importedCount === 0 && $totalCount > 0) {
+            $this->command->error('🔧 ВЪЗМОЖНИ ПРОБЛЕМИ:');
+            $this->command->error('   1. Несъответствие в имената на колоните');
+            $this->command->error('   2. Данните са в различен формат');
+            $this->command->error('   3. Липса на действителни данни в таблицата');
+            
+            // Показваме примерен ред за анализ
+            $this->command->info('🔍 Първи ред с данни за анализ:');
+            foreach ($dataLines as $line) {
+                $line = trim($line);
+                if (!empty($line) && !preg_match('/^[\|\-\=\s]+$/', $line) && $line !== '|') {
+                    $this->command->info("   " . substr($line, 0, 200));
+                    break;
+                }
             }
         }
         
-        // ⭐⭐⭐ ФИНАЛНА СТАТИСТИКА ОТ БАЗАТА ⭐⭐⭐
-        $finalStats = Customer::selectRaw('type, COUNT(*) as count')
-            ->groupBy('type')
-            ->pluck('count', 'type')
-            ->toArray();
+        // Допълнителна статистика
+        $activeCustomers = Customer::where('is_active', true)->count();
+        $suppliers = Customer::where('is_supplier', true)->count();
         
-        $this->command->info("\n📊 ФИНАЛНА СТАТИСТИКА ОТ БАЗАТА ДАННИ:");
-        $this->command->info("   • Фирми (company): " . ($finalStats['company'] ?? 0));
-        $this->command->info("   • Частни лица (individual): " . ($finalStats['individual'] ?? 0));
+        $this->command->info('========================================');
+        $this->command->info('📈 СТАТИСТИКА СЛЕД ИМПОРТ:');
+        $this->command->info('========================================');
+        $this->command->info("👥 ОБЩО КЛИЕНТИ В БАЗАТА: " . Customer::count());
+        $this->command->info("✅ АКТИВНИ КЛИЕНТИ: {$activeCustomers}");
+        $this->command->info("🏭 ДОСТАВЧИЦИ: {$suppliers}");
+        $this->command->info('========================================');
         
-        if ($imported > 0) {
-            $this->command->info("\n🎉 АВТОМАТИЧНОТО ОПРЕДЕЛЯНЕ НА ТИПОВЕТЕ Е ЗАВЪРШЕНО!");
-            $this->command->info("💡 Сега можеш да продължиш с импорта на продуктите.");
+        // Съвет за следващи стъпки
+        if ($importedCount > 0) {
+            $this->command->info('🎉 ИМПОРТЪТ ЗАВЪРШИ УСПЕШНО!');
+            $this->command->info('➡️  Следваща стъпка: Проверете данните в базата');
+        } else {
+            $this->command->error('❌ НИЩО НЕ Е ИМПОРТИРАНО!');
         }
     }
     
     /**
-     * Подготвя данните за клиента
+     * Извлича заглавките от ред с табличен формат
      */
-    private function prepareCustomerData(array $oldData): array
+    private function extractHeaders($headerLine): array
     {
-        // Конвертирай всички текстови полета
-        $converted = [];
-        foreach ($oldData as $key => $value) {
-            if (is_string($value)) {
-                $converted[$key] = $this->fixAccessEncoding($value);
-            } else {
-                $converted[$key] = $value;
+        // Премахваме началния и крайния "|"
+        $headerLine = trim($headerLine, '| ');
+        
+        // Разделяме по "|"
+        $parts = explode('|', $headerLine);
+        
+        // Почистваме всяка заглавка
+        $headers = [];
+        foreach ($parts as $part) {
+            $header = trim($part);
+            if (!empty($header)) {
+                $headers[] = $header;
             }
         }
         
-        return [
-            'old_system_id'       => $converted['Number'] ?? null,
-            // ⭐⭐⭐ ИЗПОЛЗВА АВТОМАТИЧНО ОПРЕДЕЛЕНИЯ ТИП ⭐⭐⭐
-            'type'                => $converted['_auto_type'] ?? 'company',
-            'name'                => trim($converted['Customer-Name'] ?? ''),
-            'vat_number'          => $this->cleanVatNumber($converted['Customer-Taxno'] ?? ''),
-            'bulstat'             => trim($converted['Customer-Bulstat'] ?? ''),
-            'contact_person'      => trim($converted['Customer-MOL'] ?? ''),
-            'phone'               => $this->cleanPhone($converted['Telno'] ?? ''),
-            'fax'                 => trim($converted['Faxno'] ?? ''),
-            'email'               => $this->cleanEmail($converted['E-mail'] ?? ''),
-            'address'             => $this->formatAddress($converted),
-            'address_line1'       => trim($converted['Customer-Address-1'] ?? ''),
-            'address_line2'       => trim($converted['Customer-Address-2'] ?? ''),
-            'city'                => $this->extractCity($converted),
-            'notes'               => $this->formatNotes($converted),
-            'court_registration'  => trim($converted['partida'] ?? ''),
-            'bulstat_letter'      => trim($converted['bulstatletter'] ?? ''),
-            'is_active'           => $this->parseBoolean($converted['active'] ?? ''),
-            'include_in_reports'  => $this->parseBoolean($converted['include'] ?? ''),
-            'created_at'          => $this->parseDate($converted['eidate'] ?? ''),
-        ];
+        return $headers;
     }
     
-    private function cleanVatNumber(string $vat): ?string
+    /**
+     * Парсва ред от таблицата
+     */
+    private function parseTableRow($line): array
     {
-        $vat = trim($vat);
-        if (empty($vat)) return null;
+        // Премахваме началния и крайния "|"
+        $line = trim($line, '| ');
         
-        $vat = preg_replace('/\s+/', '', $vat);
-        if (!str_starts_with(strtoupper($vat), 'BG')) {
-            $vat = 'BG' . $vat;
-        }
+        // Разделяме по "|", но внимаваме за празни стойности
+        $columns = [];
+        $currentPos = 0;
+        $length = strlen($line);
         
-        return $vat;
-    }
-    
-    private function cleanPhone(string $phone): ?string
-    {
-        $phone = preg_replace('/[^0-9+]/', '', trim($phone));
-        return !empty($phone) ? $phone : null;
-    }
-    
-    private function cleanEmail(string $email): ?string
-    {
-        $email = trim($email);
-        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
-    }
-    
-    private function formatAddress(array $data): string
-    {
-        $parts = [];
-        if (!empty($data['Customer-Address-1'])) $parts[] = trim($data['Customer-Address-1']);
-        if (!empty($data['Customer-Address-2'])) $parts[] = trim($data['Customer-Address-2']);
-        return implode(', ', $parts);
-    }
-    
-    private function extractCity(array $data): string
-    {
-        $address = $data['Customer-Address-1'] ?? '';
-        $address = mb_strtoupper($address, 'UTF-8');
-        
-        if (str_contains($address, 'СОФИЯ')) return 'София';
-        if (str_contains($address, 'ПЛОВДИВ')) return 'Пловдив';
-        if (str_contains($address, 'ВАРНА')) return 'Варна';
-        if (str_contains($address, 'БУРГАС')) return 'Бургас';
-        if (str_contains($address, 'РУСЕ')) return 'Русе';
-        
-        return 'София';
-    }
-    
-    private function formatNotes(array $data): ?string
-    {
-        $notes = [];
-        if (!empty($data['Receiver'])) $notes[] = 'Получател: ' . trim($data['Receiver']);
-        if (!empty($data['Contact'])) $notes[] = 'Контакт: ' . trim($data['Contact']);
-        return !empty($notes) ? implode("\n", $notes) : null;
-    }
-    
-    private function parseBoolean(string $value): bool
-    {
-        $value = strtoupper(trim($value));
-        return $value === 'ДА';
-    }
-    
-    private function parseDate(string $date): ?string
-    {
-        if (preg_match('/(\d{1,2})\.(\d{1,2})\.(\d{4})/', $date, $matches)) {
-            $day = (int)$matches[1];
-            $month = (int)$matches[2];
-            $year = (int)$matches[3];
+        while ($currentPos < $length) {
+            // Намираме следващия "|"
+            $nextPipe = strpos($line, '|', $currentPos);
             
-            return sprintf('%04d-%02d-%02d', $year, $month, $day);
+            if ($nextPipe === false) {
+                // Последна колона
+                $value = substr($line, $currentPos);
+                $columns[] = trim($value);
+                break;
+            } else {
+                // Извличаме стойността
+                $value = substr($line, $currentPos, $nextPipe - $currentPos);
+                $columns[] = trim($value);
+                $currentPos = $nextPipe + 1;
+            }
         }
-        return now()->toDateTimeString();
+        
+        return $columns;
     }
     
-    private function truncate(string $text, int $length): string
+    /**
+     * Почистване на низ
+     */
+    private function clean($string): string
     {
-        if (mb_strlen($text, 'UTF-8') <= $length) return $text;
-        return mb_substr($text, 0, $length - 3, 'UTF-8') . '...';
+        if (!is_string($string)) {
+            return '';
+        }
+        
+        // Премахване на излишни интервали и специални символи
+        $string = trim($string);
+        $string = preg_replace('/\s+/', ' ', $string);
+        
+        // Опит за конвертиране на кодиране, ако е необходимо
+        if (!mb_check_encoding($string, 'UTF-8')) {
+            $string = mb_convert_encoding($string, 'UTF-8', 'auto');
+        }
+        
+        // Премахване на въпросителни и други странни символи
+        $string = str_replace(['??', '?', '  '], ['', '', ' '], $string);
+        
+        return $string;
+    }
+    
+    /**
+     * Почистване на телефонен номер
+     */
+    private function cleanPhone($phone): string
+    {
+        $phone = $this->clean($phone);
+        if (empty($phone)) {
+            return '';
+        }
+        
+        // Запазваме само цифри, плюс и интервал
+        $phone = preg_replace('/[^0-9+\s]/', '', $phone);
+        return trim($phone);
+    }
+    
+    /**
+     * Валидация на имейл
+     */
+    private function validateEmail($email): ?string
+    {
+        $email = $this->clean($email);
+        if (empty($email)) {
+            return null;
+        }
+        
+        // Проста валидация
+        if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return strtolower($email);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Парсване на булева стойност
+     */
+    private function parseBool($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        
+        if (is_numeric($value)) {
+            return (bool) intval($value);
+        }
+        
+        $value = strtolower((string) $value);
+        $value = trim($value);
+        
+        $trueValues = ['true', 'yes', '1', 'y', 'да', 'active', 'on', 'вкл', 'включено'];
+        $falseValues = ['false', 'no', '0', 'n', 'не', 'inactive', 'off', 'изкл', 'изключено'];
+        
+        if (in_array($value, $trueValues)) {
+            return true;
+        }
+        
+        if (in_array($value, $falseValues)) {
+            return false;
+        }
+        
+        // Специални случаи за "??"
+        if ($value === '??' || $value === '?' || $value === '') {
+            return true; // По подразбиране true за неизвестни стойности
+        }
+        
+        // По подразбиране
+        return !empty($value);
     }
 }

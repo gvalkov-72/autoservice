@@ -19,6 +19,27 @@ class CustomerController extends Controller
         // Заявка с филтри
         $query = Customer::query();
 
+        // Филтриране по търсене
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->search($search);
+        }
+
+        // Филтриране по тип клиент
+        if ($request->filled('customer_type')) {
+            $type = $request->input('customer_type');
+            if ($type == 'customer') {
+                $query->where('is_customer', true);
+            } elseif ($type == 'supplier') {
+                $query->where('is_supplier', true);
+            }
+        }
+
+        // Филтриране по активност
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->input('status') == 'active');
+        }
+
         // Пагинация
         $customers = $query->orderBy('name')->paginate(20);
 
@@ -33,34 +54,51 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            // Основна информация
-            'old_system_id' => 'nullable|string|max:50',
-            'type' => 'required|in:customer,supplier,both',
+            // Поля за миграция
+            'old_id' => 'nullable|string|max:50|unique:customers,old_id',
+            'customer_number' => 'nullable|string|max:50|unique:customers,customer_number',
+
+            // Основни данни
             'name' => 'required|string|max:255',
-            'vat_number' => 'nullable|string|max:20',
-            'bulstat' => 'nullable|string|max:13',
             'contact_person' => 'nullable|string|max:255',
+            'mol' => 'nullable|string|max:255',
+            'tax_number' => 'nullable|string|max:20',
+            'bulstat' => 'nullable|string|max:13',
+            'doc_type' => 'nullable|string|max:50',
+
             // Контакти
             'phone' => 'nullable|string|max:50',
             'fax' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
-            // Адрес
+
+            // Адреси
             'address' => 'nullable|string|max:500',
-            'address_line1' => 'nullable|string|max:255',
-            'address_line2' => 'nullable|string|max:255',
-            'city' => 'nullable|string|max:255',
-            // Допълнителна информация
-            'notes' => 'nullable|string',
-            'court_registration' => 'nullable|string|max:100',
-            'bulstat_letter' => 'nullable|string|max:1',
+            'address_2' => 'nullable|string|max:500',
+            'res_address_1' => 'nullable|string|max:255',
+            'res_address_2' => 'nullable|string|max:255',
+
+            // Получател
+            'receiver' => 'nullable|string|max:255',
+            'receiver_details' => 'nullable|string',
+
+            // Допълнителни полета от Access
+            'eidale' => 'nullable|string|max:50',
+            'partida' => 'nullable|string|max:50',
+            'bulsial_letter' => 'nullable|string|max:10',
+
             // Флагове
             'is_active' => 'boolean',
-            'include_in_reports' => 'boolean',
+            'is_customer' => 'boolean',
+            'is_supplier' => 'boolean',
+            'include_in_mailing' => 'boolean',
+
+            // Бележки
+            'notes' => 'nullable|string',
         ]);
 
-        // Пълнене на комбинирания адрес, ако е празен
-        if (empty($validated['address']) && (!empty($validated['address_line1']) || !empty($validated['address_line2']))) {
-            $validated['address'] = trim($validated['address_line1'] . ', ' . $validated['address_line2'], ', ');
+        // Автоматично генериране на customer_number, ако не е предоставен
+        if (empty($validated['customer_number']) && !empty($validated['old_id'])) {
+            $validated['customer_number'] = $validated['old_id'];
         }
 
         // Създаване на клиента
@@ -85,12 +123,12 @@ class CustomerController extends Controller
             $query->orderBy('created_at', 'desc')->limit(10);
         }]);
 
-        // Статистики за този клиент
+        // Статистики за този клиент (актуализирани за новите отношения)
         $customerStats = [
             'total_vehicles' => $customer->vehicles()->count(),
             'total_work_orders' => $customer->workOrders()->count(),
             'total_invoices' => $customer->invoices()->count(),
-            'total_spent' => $customer->workOrders()->sum('total'),
+            'total_spent' => $customer->invoices()->sum('total_amount') + $customer->workOrders()->sum('total_amount'),
             'last_service' => $customer->workOrders()->latest()->first()?->received_at,
             'active_vehicles' => $customer->vehicles()->where('is_active', true)->count(),
         ];
@@ -106,35 +144,47 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer)
     {
         $validated = $request->validate([
-            // Основна информация
-            'old_system_id' => 'nullable|string|max:50',
-            'type' => 'required|in:customer,supplier,both',
+            // Поля за миграция
+            'old_id' => 'nullable|string|max:50|unique:customers,old_id,' . $customer->id,
+            'customer_number' => 'nullable|string|max:50|unique:customers,customer_number,' . $customer->id,
+
+            // Основни данни
             'name' => 'required|string|max:255',
-            'vat_number' => 'nullable|string|max:20',
-            'bulstat' => 'nullable|string|max:13',
             'contact_person' => 'nullable|string|max:255',
+            'mol' => 'nullable|string|max:255',
+            'tax_number' => 'nullable|string|max:20',
+            'bulstat' => 'nullable|string|max:13',
+            'doc_type' => 'nullable|string|max:50',
+
             // Контакти
             'phone' => 'nullable|string|max:50',
             'fax' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
-            // Адрес
+
+            // Адреси
             'address' => 'nullable|string|max:500',
-            'address_line1' => 'nullable|string|max:255',
-            'address_line2' => 'nullable|string|max:255',
-            'city' => 'nullable|string|max:255',
-            // Допълнителна информация
-            'notes' => 'nullable|string',
-            'court_registration' => 'nullable|string|max:100',
-            'bulstat_letter' => 'nullable|string|max:1',
+            'address_2' => 'nullable|string|max:500',
+            'res_address_1' => 'nullable|string|max:255',
+            'res_address_2' => 'nullable|string|max:255',
+
+            // Получател
+            'receiver' => 'nullable|string|max:255',
+            'receiver_details' => 'nullable|string',
+
+            // Допълнителни полета от Access
+            'eidale' => 'nullable|string|max:50',
+            'partida' => 'nullable|string|max:50',
+            'bulsial_letter' => 'nullable|string|max:10',
+
             // Флагове
             'is_active' => 'boolean',
-            'include_in_reports' => 'boolean',
-        ]);
+            'is_customer' => 'boolean',
+            'is_supplier' => 'boolean',
+            'include_in_mailing' => 'boolean',
 
-        // Пълнене на комбинирания адрес, ако е празен
-        if (empty($validated['address']) && (!empty($validated['address_line1']) || !empty($validated['address_line2']))) {
-            $validated['address'] = trim($validated['address_line1'] . ', ' . $validated['address_line2'], ', ');
-        }
+            // Бележки
+            'notes' => 'nullable|string',
+        ]);
 
         // Запазване на старите данни за лог
         $oldData = $customer->toArray();
@@ -232,7 +282,7 @@ class CustomerController extends Controller
         $selectedIds = $request->input('selected_ids', []);
 
         if (empty($selectedIds)) {
-            return back()->with('error', 'Не сте избрали клиенти за действие.');
+            return back()->with('error', 'Не сте избрани клиенти за действие.');
         }
 
         $customers = Customer::whereIn('id', $selectedIds)->get();
@@ -252,18 +302,32 @@ class CustomerController extends Controller
                 $message = count($selectedIds) . ' клиенти бяха деактивирани.';
                 break;
 
-            case 'include_in_reports':
+            case 'make_customer':
                 $customers->each(function ($customer) {
-                    $customer->update(['include_in_reports' => true]);
+                    $customer->update(['is_customer' => true]);
                 });
-                $message = count($selectedIds) . ' клиенти бяха включени в справки.';
+                $message = count($selectedIds) . ' клиенти бяха маркирани като клиенти.';
                 break;
 
-            case 'exclude_from_reports':
+            case 'make_supplier':
                 $customers->each(function ($customer) {
-                    $customer->update(['include_in_reports' => false]);
+                    $customer->update(['is_supplier' => true]);
                 });
-                $message = count($selectedIds) . ' клиенти бяха изключени от справки.';
+                $message = count($selectedIds) . ' клиенти бяха маркирани като доставчици.';
+                break;
+
+            case 'include_in_mailing':
+                $customers->each(function ($customer) {
+                    $customer->update(['include_in_mailing' => true]);
+                });
+                $message = count($selectedIds) . ' клиенти бяха включени в бюлетин.';
+                break;
+
+            case 'exclude_from_mailing':
+                $customers->each(function ($customer) {
+                    $customer->update(['include_in_mailing' => false]);
+                });
+                $message = count($selectedIds) . ' клиенти бяха изключени от бюлетин.';
                 break;
 
             case 'export':
@@ -322,15 +386,16 @@ class CustomerController extends Controller
         // Прилагане на филтри от заявката
         if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
-                    ->orWhere('phone', 'LIKE', "%{$search}%")
-                    ->orWhere('email', 'LIKE', "%{$search}%");
-            });
+            $query->search($search);
         }
 
-        if ($request->filled('type')) {
-            $query->where('type', $request->input('type'));
+        if ($request->filled('customer_type')) {
+            $type = $request->input('customer_type');
+            if ($type == 'customer') {
+                $query->where('is_customer', true);
+            } elseif ($type == 'supplier') {
+                $query->where('is_supplier', true);
+            }
         }
 
         if ($request->filled('status')) {
@@ -363,15 +428,16 @@ class CustomerController extends Controller
         // Прилагане на филтри
         if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
-                    ->orWhere('phone', 'LIKE', "%{$search}%")
-                    ->orWhere('email', 'LIKE', "%{$search}%");
-            });
+            $query->search($search);
         }
 
-        if ($request->filled('type')) {
-            $query->where('type', $request->input('type'));
+        if ($request->filled('customer_type')) {
+            $type = $request->input('customer_type');
+            if ($type == 'customer') {
+                $query->where('is_customer', true);
+            } elseif ($type == 'supplier') {
+                $query->where('is_supplier', true);
+            }
         }
 
         if ($request->filled('status')) {
@@ -391,116 +457,27 @@ class CustomerController extends Controller
             ->setOption('margin-left', 10)
             ->setOption('margin-right', 10);
 
-        // Логване на експорта
-        activity()
-            ->causedBy(Auth::user())
-            ->withProperties(['count' => $customers->count()])
-            ->log('Експортирани всички клиенти в PDF');
-
-        return $pdf->download('customers_list_' . now()->format('Ymd_His') . '.pdf');
-    }
-
-    protected function bulkExport(array $customerIds)
-    {
-        $customers = Customer::whereIn('id', $customerIds)->get();
-
-        if ($customers->isEmpty()) {
-            return back()->with('error', 'Няма клиенти за експорт.');
-        }
-
-        // Създаване на експорт за избрани клиенти
-        $export = new CustomerExport($customers);
-        $fileName = 'customers_selected_' . now()->format('Ymd_His') . '.xlsx';
-
-        // Логване на експорта
-        activity()
-            ->causedBy(Auth::user())
-            ->withProperties(['count' => $customers->count(), 'ids' => $customerIds])
-            ->log('Експортирани избрани клиенти');
-
-        return Excel::download($export, $fileName);
-    }
-
-    /* ---------- API / AJAX ---------- */
-
-    public function search(Request $request)
-    {
-        $search = $request->input('q', '');
-
-        $customers = Customer::where('name', 'LIKE', "%{$search}%")
-            ->orWhere('phone', 'LIKE', "%{$search}%")
-            ->orWhere('email', 'LIKE', "%{$search}%")
-            ->orWhere('vat_number', 'LIKE', "%{$search}%")
-            ->limit(10)
-            ->get(['id', 'name', 'phone', 'email', 'type']);
-
-        $results = $customers->map(function ($customer) {
-            return [
-                'id' => $customer->id,
-                'text' => $customer->name .
-                    ($customer->phone ? ' | Тел: ' . $customer->phone : '') .
-                    ($customer->email ? ' | Email: ' . $customer->email : ''),
-                'type' => $customer->type,
-                'phone' => $customer->phone,
-                'email' => $customer->email,
-            ];
-        });
-
-        return response()->json(['results' => $results]);
-    }
-
-    public function quickView($id)
-    {
-        $customer = Customer::with(['vehicles' => function ($query) {
-            $query->limit(3);
-        }])->findOrFail($id);
-
-        return response()->json([
-            'success' => true,
-            'html' => view('admin.customers.partials.quick-view', compact('customer'))->render()
-        ]);
+        return $pdf->stream('customers_export_' . now()->format('Ymd_His') . '.pdf');
     }
 
     /* ---------- ДОПЪЛНИТЕЛНИ МЕТОДИ ---------- */
 
-    public function deleted()
+    private function bulkExport($selectedIds)
     {
-        $customers = Customer::onlyTrashed()->paginate(20);
+        $customers = Customer::whereIn('id', $selectedIds)->get();
+        
+        if ($customers->isEmpty()) {
+            return back()->with('error', 'Няма избрани клиенти за експорт.');
+        }
 
-        return view('admin.customers.deleted', compact('customers'));
-    }
+        $export = new CustomerExport($customers);
+        $fileName = 'customers_selected_' . now()->format('Ymd_His') . '.xlsx';
 
-    public function toggleStatus(Customer $customer)
-    {
-        $customer->update(['is_active' => !$customer->is_active]);
-
-        $status = $customer->is_active ? 'активиран' : 'деактивиран';
-
-        // Логване
         activity()
             ->causedBy(Auth::user())
-            ->performedOn($customer)
-            ->log('Променен статус на клиент: ' . $customer->name . ' (' . $status . ')');
+            ->withProperties(['count' => $customers->count()])
+            ->log('Експортирани избрани клиенти');
 
-        return back()->with('success', 'Статусът на клиент "' . $customer->name . '" е променен на ' . $status . '.');
-    }
-
-    public function duplicate(Customer $customer)
-    {
-        $newCustomer = $customer->replicate();
-        $newCustomer->name = $customer->name . ' (Копие)';
-        $newCustomer->created_at = now();
-        $newCustomer->updated_at = now();
-        $newCustomer->save();
-
-        // Логване
-        activity()
-            ->causedBy(Auth::user())
-            ->performedOn($newCustomer)
-            ->log('Създадено копие на клиент: ' . $customer->name);
-
-        return redirect()
-            ->route('admin.customers.edit', $newCustomer)
-            ->with('success', 'Копие на клиент "' . $customer->name . '" е създадено успешно. Можете да редактирате данните.');
+        return Excel::download($export, $fileName);
     }
 }

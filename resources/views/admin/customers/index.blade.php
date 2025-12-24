@@ -53,21 +53,22 @@
 
                     <!-- Филтри и търсене -->
                     <div class="card-tools d-flex align-items-center" style="gap: 10px;">
-                        <!-- Фильтри -->
+                        <!-- Филтър по тип клиент -->
                         <div class="input-group input-group-sm" style="width: 200px;">
                             <div class="input-group-prepend">
                                 <span class="input-group-text">
                                     <i class="fas fa-filter"></i>
                                 </span>
                             </div>
-                            <select id="filterType" class="form-control">
+                            <select id="filterCustomerType" class="form-control">
                                 <option value="">Всички типове</option>
-                                <option value="customer">Клиенти</option>
-                                <option value="supplier">Доставчици</option>
-                                <option value="both">И двата</option>
+                                <option value="customer">Само клиенти</option>
+                                <option value="supplier">Само доставчици</option>
+                                <option value="both">Клиенти и доставчици</option>
                             </select>
                         </div>
 
+                        <!-- Филтър по активност -->
                         <div class="input-group input-group-sm" style="width: 180px;">
                             <div class="input-group-prepend">
                                 <span class="input-group-text">
@@ -81,6 +82,20 @@
                             </select>
                         </div>
 
+                        <!-- Филтър по включване в бюлетин -->
+                        <div class="input-group input-group-sm" style="width: 200px;">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">
+                                    <i class="fas fa-envelope"></i>
+                                </span>
+                            </div>
+                            <select id="filterMailing" class="form-control">
+                                <option value="">Всички за бюлетин</option>
+                                <option value="included">Включени в бюлетин</option>
+                                <option value="excluded">Изключени от бюлетин</option>
+                            </select>
+                        </div>
+
                         <!-- Търсачка -->
                         <div class="input-group input-group-sm" style="width: 300px;">
                             <div class="input-group-prepend">
@@ -89,7 +104,7 @@
                                 </span>
                             </div>
                             <input type="text" id="quickSearch" class="form-control"
-                                placeholder="Търсене по име, телефон, имейл...">
+                                placeholder="Търсене по име, телефон, имейл, номер...">
                             <div class="input-group-append">
                                 <button class="btn btn-outline-secondary" type="button" id="clearSearch"
                                     title="Изчисти търсене">
@@ -131,14 +146,23 @@
                                     </button>
 
                                     <div class="dropdown-divider"></div>
-                                    <h6 class="dropdown-header">Справки</h6>
+                                    <h6 class="dropdown-header">Тип</h6>
+                                    <button type="button" class="dropdown-item bulk-action-item" data-action="make_customer">
+                                        <i class="fas fa-user text-info mr-2"></i>Маркирай като клиент
+                                    </button>
+                                    <button type="button" class="dropdown-item bulk-action-item" data-action="make_supplier">
+                                        <i class="fas fa-truck text-warning mr-2"></i>Маркирай като доставчик
+                                    </button>
+
+                                    <div class="dropdown-divider"></div>
+                                    <h6 class="dropdown-header">Бюлетин</h6>
                                     <button type="button" class="dropdown-item bulk-action-item"
-                                        data-action="include_in_reports">
-                                        <i class="fas fa-chart-bar text-info mr-2"></i>Включи в справки
+                                        data-action="include_in_mailing">
+                                        <i class="fas fa-envelope text-primary mr-2"></i>Включи в бюлетин
                                     </button>
                                     <button type="button" class="dropdown-item bulk-action-item"
-                                        data-action="exclude_from_reports">
-                                        <i class="fas fa-ban text-warning mr-2"></i>Изключи от справки
+                                        data-action="exclude_from_mailing">
+                                        <i class="fas fa-envelope-slash text-secondary mr-2"></i>Изключи от бюлетин
                                     </button>
 
                                     <div class="dropdown-divider"></div>
@@ -167,16 +191,17 @@
                                     </th>
                                     <th width="60" class="text-center">ID</th>
                                     <th>Клиент</th>
-                                    <th width="120">Тип</th>
                                     <th width="150">Контакти</th>
+                                    <th width="100">Тип</th>
                                     <th width="100">Статус</th>
                                     <th width="140" class="text-center">Действия</th>
                                 </tr>
                             </thead>
                             <tbody id="customersTableBody">
                                 @foreach ($customers as $customer)
-                                    <tr data-type="{{ $customer->type }}"
-                                        data-status="{{ $customer->is_active ? 'active' : 'inactive' }}">
+                                    <tr data-customer-type="{{ $customer->is_customer && $customer->is_supplier ? 'both' : ($customer->is_customer ? 'customer' : 'supplier') }}"
+                                        data-status="{{ $customer->is_active ? 'active' : 'inactive' }}"
+                                        data-mailing="{{ $customer->include_in_mailing ? 'included' : 'excluded' }}">
                                         <td class="text-center">
                                             <div class="custom-control custom-checkbox">
                                                 <input type="checkbox" class="custom-control-input customer-checkbox"
@@ -191,17 +216,17 @@
                                         <td>
                                             <div class="d-flex">
                                                 <div class="mr-2">
-                                                    @if ($customer->type == 'customer')
-                                                        <span class="badge bg-info p-2">
-                                                            <i class="fas fa-user"></i>
+                                                    @if ($customer->is_customer && $customer->is_supplier)
+                                                        <span class="badge bg-primary p-2" title="Клиент и доставчик">
+                                                            <i class="fas fa-user-tie"></i>
                                                         </span>
-                                                    @elseif($customer->type == 'supplier')
-                                                        <span class="badge bg-warning p-2">
+                                                    @elseif($customer->is_supplier)
+                                                        <span class="badge bg-warning p-2" title="Доставчик">
                                                             <i class="fas fa-truck"></i>
                                                         </span>
                                                     @else
-                                                        <span class="badge bg-primary p-2">
-                                                            <i class="fas fa-user-tie"></i>
+                                                        <span class="badge bg-info p-2" title="Клиент">
+                                                            <i class="fas fa-user"></i>
                                                         </span>
                                                     @endif
                                                 </div>
@@ -219,56 +244,73 @@
                                                             </small>
                                                         </div>
                                                     @endif
-                                                    @if ($customer->old_system_id)
+                                                    @if ($customer->mol)
                                                         <div>
                                                             <small class="text-muted">
-                                                                <i class="fas fa-database fa-xs mr-1"></i>Старо ID:
-                                                                {{ $customer->old_system_id }}
+                                                                <i class="fas fa-id-card fa-xs mr-1"></i>МОЛ: {{ $customer->mol }}
                                                             </small>
                                                         </div>
                                                     @endif
+                                                    <div>
+                                                        @if($customer->old_id)
+                                                            <small class="text-muted">
+                                                                <i class="fas fa-database fa-xs mr-1"></i>Старо ID: {{ $customer->old_id }}
+                                                            </small>
+                                                        @endif
+                                                        @if($customer->customer_number && $customer->customer_number != $customer->old_id)
+                                                            <small class="text-muted ml-2">
+                                                                <i class="fas fa-hashtag fa-xs mr-1"></i>Номер: {{ $customer->customer_number }}
+                                                            </small>
+                                                        @endif
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
                                         <td>
-                                            @if ($customer->type == 'customer')
-                                                <span class="badge bg-info">Клиент</span>
-                                            @elseif($customer->type == 'supplier')
-                                                <span class="badge bg-warning">Доставчик</span>
-                                            @else
-                                                <span class="badge bg-primary">И двата</span>
-                                            @endif
-                                        </td>
-                                        <td>
                                             @if ($customer->phone)
-                                                <div class="mb-1">
-                                                    <i class="fas fa-phone text-success mr-1"></i>
+                                                <div>
+                                                    <i class="fas fa-phone fa-xs text-muted mr-1"></i>
                                                     <small>{{ $customer->phone }}</small>
                                                 </div>
                                             @endif
                                             @if ($customer->email)
                                                 <div>
-                                                    <i class="fas fa-envelope text-primary mr-1"></i>
-                                                    <small class="customer-email">{{ $customer->email }}</small>
+                                                    <i class="fas fa-envelope fa-xs text-muted mr-1"></i>
+                                                    <small>{{ $customer->email }}</small>
+                                                </div>
+                                            @endif
+                                            @if ($customer->tax_number)
+                                                <div>
+                                                    <i class="fas fa-file-invoice-dollar fa-xs text-muted mr-1"></i>
+                                                    <small>ДДС: {{ $customer->tax_number }}</small>
                                                 </div>
                                             @endif
                                         </td>
                                         <td>
+                                            <div class="d-flex flex-column">
+                                                @if ($customer->is_customer)
+                                                    <span class="badge badge-info mb-1">Клиент</span>
+                                                @endif
+                                                @if ($customer->is_supplier)
+                                                    <span class="badge badge-warning">Доставчик</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td>
                                             @if ($customer->is_active)
-                                                <span class="badge bg-success">
-                                                    <i class="fas fa-check mr-1"></i>Активен
-                                                </span>
+                                                <span class="badge badge-success">Активен</span>
                                             @else
-                                                <span class="badge bg-secondary">
-                                                    <i class="fas fa-times mr-1"></i>Неактивен
-                                                </span>
+                                                <span class="badge badge-secondary">Неактивен</span>
                                             @endif
-                                            @if ($customer->include_in_reports)
-                                                <br><small class="badge bg-info mt-1">В справки</small>
+                                            <br>
+                                            @if ($customer->include_in_mailing)
+                                                <small class="text-muted">
+                                                    <i class="fas fa-envelope fa-xs"></i> В бюлетин
+                                                </small>
                                             @endif
                                         </td>
                                         <td class="text-center">
-                                            <div class="btn-group btn-group-sm">
+                                            <div class="btn-group btn-group-sm" role="group">
                                                 <a href="{{ route('admin.customers.show', $customer) }}"
                                                     class="btn btn-info" title="Преглед">
                                                     <i class="fas fa-eye"></i>
@@ -277,15 +319,12 @@
                                                     class="btn btn-primary" title="Редактирай">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="{{ route('admin.customers.export.pdf', $customer) }}"
-                                                    class="btn btn-danger" title="PDF">
-                                                    <i class="fas fa-file-pdf"></i>
-                                                </a>
                                                 <form action="{{ route('admin.customers.destroy', $customer) }}"
-                                                    method="POST" class="d-inline"
-                                                    onsubmit="return confirm('Сигурни ли сте, че искате да деактивирате този клиент?')">
+                                                    method="POST" class="d-inline">
                                                     @csrf @method('DELETE')
-                                                    <button type="submit" class="btn btn-danger" title="Деактивирай">
+                                                    <button type="submit" class="btn btn-danger"
+                                                        onclick="return confirm('Сигурни ли сте, че искате да деактивирате този клиент?')"
+                                                        title="Деактивирай">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </form>
@@ -295,469 +334,177 @@
                                 @endforeach
                             </tbody>
                         </table>
-
-                        @if ($customers->isEmpty())
-                            <div class="text-center py-4">
-                                <i class="fas fa-users fa-2x text-muted mb-3"></i>
-                                <h5 class="text-muted">Няма намерени клиенти</h5>
-                                <p class="text-muted mb-0">Създайте първия клиент или импортирайте от файл</p>
-                                <div class="mt-3">
-                                    <a href="{{ route('admin.customers.create') }}" class="btn btn-primary mr-2">
-                                        <i class="fas fa-plus mr-1"></i>Добави клиент
-                                    </a>
-                                    <a href="{{ route('admin.customers.import') }}" class="btn btn-info">
-                                        <i class="fas fa-file-import mr-1"></i>Импортирай
-                                    </a>
-                                </div>
-                            </div>
-                        @endif
                     </div>
 
-                    @if($customers->hasPages())
-<div class="card-footer clearfix">
-    <div class="float-right">
-        <nav aria-label="Пагинация">
-            <ul class="pagination pagination-sm m-0">
-                {{-- Previous Page Link --}}
-                @if ($customers->onFirstPage())
-                    <li class="page-item disabled">
-                        <span class="page-link">
-                            <i class="fas fa-chevron-left mr-1"></i> Предишна
-                        </span>
-                    </li>
-                @else
-                    <li class="page-item">
-                        <a class="page-link" href="{{ $customers->previousPageUrl() }}" rel="prev">
-                            <i class="fas fa-chevron-left mr-1"></i> Предишна
-                        </a>
-                    </li>
-                @endif
-
-                {{-- Pagination Elements with Ellipsis --}}
-                @php
-                    $current = $customers->currentPage();
-                    $last = $customers->lastPage();
-                    $window = 2; // Брой страници преди и след текущата
-                    
-                    // Определяме кои страници да покажем
-                    $start = max(1, $current - $window);
-                    $end = min($last, $current + $window);
-                @endphp
-
-                {{-- Първа страница винаги --}}
-                @if ($start > 1)
-                    <li class="page-item">
-                        <a class="page-link" href="{{ $customers->url(1) }}">1</a>
-                    </li>
-                    @if ($start > 2)
-                        <li class="page-item disabled">
-                            <span class="page-link">...</span>
-                        </li>
-                    @endif
-                @endif
-
-                {{-- Страници в прозореца --}}
-                @for ($page = $start; $page <= $end; $page++)
-                    @if ($page == $current)
-                        <li class="page-item active">
-                            <span class="page-link">{{ $page }}</span>
-                        </li>
-                    @else
-                        <li class="page-item">
-                            <a class="page-link" href="{{ $customers->url($page) }}">{{ $page }}</a>
-                        </li>
-                    @endif
-                @endfor
-
-                {{-- Последна страница --}}
-                @if ($end < $last)
-                    @if ($end < $last - 1)
-                        <li class="page-item disabled">
-                            <span class="page-link">...</span>
-                        </li>
-                    @endif
-                    <li class="page-item">
-                        <a class="page-link" href="{{ $customers->url($last) }}">{{ $last }}</a>
-                    </li>
-                @endif
-
-                {{-- Next Page Link --}}
-                @if ($customers->hasMorePages())
-                    <li class="page-item">
-                        <a class="page-link" href="{{ $customers->nextPageUrl() }}" rel="next">
-                            Следваща <i class="fas fa-chevron-right ml-1"></i>
-                        </a>
-                    </li>
-                @else
-                    <li class="page-item disabled">
-                        <span class="page-link">
-                            Следваща <i class="fas fa-chevron-right ml-1"></i>
-                        </span>
-                    </li>
-                @endif
-            </ul>
-        </nav>
-    </div>
-</div>
-@endif
+                    <div class="card-footer clearfix">
+                        <div class="float-left">
+                            <small class="text-muted">
+                                Показване на {{ $customers->firstItem() }} до {{ $customers->lastItem() }} 
+                                от общо {{ $customers->total() }} клиенти
+                            </small>
+                        </div>
+                        <div class="float-right">
+                            {{ $customers->links('pagination::bootstrap-4') }}
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 @stop
 
-@push('css')
-    <style>
-        .card.card-primary.card-outline {
-            border-top: 3px solid #007bff;
-        }
-
-        .card-header .card-tools {
-            position: relative;
-            left: 0;
-            transform: none;
-        }
-
-        @media (max-width: 768px) {
-            .card-header .card-tools {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .card-header .card-tools .input-group {
-                width: 100% !important;
-            }
-        }
-
-        /* Стил за подсветка на търсения текст */
-        .highlight {
-            background-color: #ffeb3b;
-            color: #000;
-            font-weight: bold;
-            padding: 1px 2px;
-            border-radius: 2px;
-        }
-
-        /* Стил за избрани редове */
-        tr.selected {
-            background-color: rgba(0, 123, 255, 0.1) !important;
-        }
-
-        tr.selected td {
-            border-color: rgba(0, 123, 255, 0.3) !important;
-        }
-
-        /* Bulk action header */
-        #bulkActionHeader {
-            transition: all 0.3s ease;
-            border-bottom: 2px solid #007bff;
-        }
-    </style>
-@endpush
-
 @push('js')
-    <script>
-        $(document).ready(function() {
-            // --- ГЛОБАЛНИ ПРОМЕНЛИВИ ---
-            let originalRows = $('#customersTableBody tr').toArray();
-            let selectedCustomers = new Set();
+<script>
+    $(document).ready(function () {
+        // Променливи за състояние
+        let selectedCustomers = [];
+        const tableBody = $('#customersTableBody');
+        const rows = tableBody.find('tr');
 
-            // --- ФУНКЦИИ ЗА ТЪРСЕНЕ И ФИЛТРИРАНЕ ---
-            function performSearchAndFilter() {
-                const searchText = $('#quickSearch').val().toLowerCase().trim();
-                const filterType = $('#filterType').val();
-                const filterStatus = $('#filterStatus').val();
+        // ========== ФУНКЦИИ ЗА ФИЛТРАЦИЯ ==========
+        function applyFilters() {
+            const customerType = $('#filterCustomerType').val();
+            const status = $('#filterStatus').val();
+            const mailing = $('#filterMailing').val();
+            const searchTerm = $('#quickSearch').val().toLowerCase();
 
-                const tbody = $('#customersTableBody');
-                let visibleCount = 0;
+            rows.each(function () {
+                const row = $(this);
+                const rowCustomerType = row.data('customer-type');
+                const rowStatus = row.data('status');
+                const rowMailing = row.data('mailing');
+                const rowText = row.text().toLowerCase();
 
-                originalRows.forEach(row => {
-                    const $row = $(row);
-                    const name = $row.find('.customer-name').text().toLowerCase();
-                    const email = $row.find('.customer-email').text().toLowerCase();
-                    const rowType = $row.data('type');
-                    const rowStatus = $row.data('status');
+                let showRow = true;
 
-                    let matchesSearch = true;
-                    let matchesFilter = true;
-
-                    // Проверка за търсене
-                    if (searchText.length > 0) {
-                        matchesSearch = name.includes(searchText) || email.includes(searchText);
+                // Филтър по тип клиент
+                if (customerType) {
+                    if (customerType === 'both' && rowCustomerType !== 'both') {
+                        showRow = false;
+                    } else if (customerType === 'customer' && !rowCustomerType.includes('customer')) {
+                        showRow = false;
+                    } else if (customerType === 'supplier' && !rowCustomerType.includes('supplier')) {
+                        showRow = false;
                     }
-
-                    // Проверка за филтри
-                    if (filterType && rowType !== filterType) {
-                        matchesFilter = false;
-                    }
-                    if (filterStatus && rowStatus !== filterStatus) {
-                        matchesFilter = false;
-                    }
-
-                    // Показване/скриване на реда
-                    if (matchesSearch && matchesFilter) {
-                        $row.show();
-                        visibleCount++;
-
-                        // Подсветяване на текста за търсене
-                        if (searchText.length > 0) {
-                            highlightText($row.find('.customer-name'), searchText);
-                            highlightText($row.find('.customer-email'), searchText);
-                        } else {
-                            removeHighlight($row.find('.customer-name'));
-                            removeHighlight($row.find('.customer-email'));
-                        }
-                    } else {
-                        $row.hide();
-                    }
-                });
-
-                // Показване на съобщение ако няма резултати
-                if (visibleCount === 0) {
-                    tbody.append(`
-                <tr id="noResultsRow">
-                    <td colspan="7" class="text-center py-4">
-                        <i class="fas fa-search fa-2x text-muted mb-3"></i>
-                        <h5 class="text-muted">Няма намерени резултати</h5>
-                        <p class="text-muted mb-0">Не бяха намерени клиенти, отговарящи на критериите</p>
-                    </td>
-                </tr>
-            `);
-                } else {
-                    $('#noResultsRow').remove();
-                }
-            }
-
-            function highlightText($element, searchText) {
-                const text = $element.text();
-                const regex = new RegExp(`(${searchText})`, 'gi');
-                const highlighted = text.replace(regex, '<span class="highlight">$1</span>');
-                $element.html(highlighted);
-            }
-
-            function removeHighlight($element) {
-                const text = $element.text();
-                $element.text(text);
-            }
-
-            // --- ФУНКЦИИ ЗА ГРУПОВИ ДЕЙСТВИЯ ---
-            function updateBulkActionHeader() {
-                const count = selectedCustomers.size;
-                const $header = $('#bulkActionHeader');
-                const $selectedCount = $('#selectedCount');
-                const $bulkActionButton = $('#bulkActionButton');
-
-                $selectedCount.text(count);
-
-                if (count > 0) {
-                    $header.removeClass('d-none');
-                    $bulkActionButton.prop('disabled', false);
-                    $bulkActionButton.text(`Групово действие (${count})`);
-
-                    // Маркиране на избраните редове
-                    $('tr').removeClass('selected');
-                    selectedCustomers.forEach(id => {
-                        $(`#customer_${id}`).closest('tr').addClass('selected');
-                    });
-                } else {
-                    $header.addClass('d-none');
-                    $bulkActionButton.prop('disabled', true);
-                    $bulkActionButton.text('Групово действие');
-                    $('tr').removeClass('selected');
                 }
 
-                // Обновяване на главния чекбокс
-                updateMasterCheckbox();
-            }
-
-            function updateMasterCheckbox() {
-                const visibleRows = $('#customersTableBody tr:visible').not('#noResultsRow');
-                const checkedVisibleRows = visibleRows.find('.customer-checkbox:checked').length;
-
-                const $masterCheckbox = $('#masterCheckbox');
-                const $selectAllCheckbox = $('#selectAllCheckbox');
-
-                if (visibleRows.length === 0) {
-                    $masterCheckbox.prop('checked', false);
-                    $masterCheckbox.prop('indeterminate', false);
-                    $selectAllCheckbox.prop('checked', false);
-                    $selectAllCheckbox.prop('indeterminate', false);
-                } else if (checkedVisibleRows === visibleRows.length) {
-                    $masterCheckbox.prop('checked', true);
-                    $masterCheckbox.prop('indeterminate', false);
-                    $selectAllCheckbox.prop('checked', true);
-                    $selectAllCheckbox.prop('indeterminate', false);
-                } else if (checkedVisibleRows > 0) {
-                    $masterCheckbox.prop('checked', false);
-                    $masterCheckbox.prop('indeterminate', true);
-                    $selectAllCheckbox.prop('checked', false);
-                    $selectAllCheckbox.prop('indeterminate', true);
-                } else {
-                    $masterCheckbox.prop('checked', false);
-                    $masterCheckbox.prop('indeterminate', false);
-                    $selectAllCheckbox.prop('checked', false);
-                    $selectAllCheckbox.prop('indeterminate', false);
-                }
-            }
-
-            function performBulkAction(action) {
-                if (selectedCustomers.size === 0) {
-                    alert('Моля, изберете поне един клиент за действие.');
-                    return;
+                // Филтър по статус
+                if (status && rowStatus !== status) {
+                    showRow = false;
                 }
 
-                if (action === 'export') {
-                    // Експорт на избраните клиенти
-                    const idsArray = Array.from(selectedCustomers);
-                    const exportUrl =
-                        `{{ route('admin.customers.export.all') }}?selected_ids=${idsArray.join(',')}`;
-                    window.location.href = exportUrl;
-                    return;
+                // Филтър по бюлетин
+                if (mailing && rowMailing !== mailing) {
+                    showRow = false;
                 }
 
-                // Потвърждение за други действия
-                let confirmMessage = '';
-                switch (action) {
-                    case 'activate':
-                        confirmMessage =
-                            `Сигурни ли сте, че искате да активирате ${selectedCustomers.size} клиента?`;
-                        break;
-                    case 'deactivate':
-                        confirmMessage =
-                            `Сигурни ли сте, че искате да деактивирате ${selectedCustomers.size} клиента?`;
-                        break;
-                    case 'include_in_reports':
-                        confirmMessage =
-                            `Сигурни ли сте, че искате да включите ${selectedCustomers.size} клиента в справки?`;
-                        break;
-                    case 'exclude_from_reports':
-                        confirmMessage =
-                            `Сигурни ли сте, че искате да изключите ${selectedCustomers.size} клиента от справки?`;
-                        break;
+                // Филтър по търсене
+                if (searchTerm && !rowText.includes(searchTerm)) {
+                    showRow = false;
                 }
 
-                if (!confirm(confirmMessage)) {
-                    return;
-                }
-
-                // Изпращане на формата
-                $('#selectedIdsInput').val(Array.from(selectedCustomers).join(','));
-                $('#bulkActionInput').val(action);
-                $('#bulkActionForm').submit();
-            }
-
-            // --- СЛУШАТЕЛИ НА СЪБИТИЯ ---
-            // Търсене и филтри
-            $('#quickSearch').on('input', function() {
-                clearTimeout(window.searchTimer);
-                window.searchTimer = setTimeout(() => {
-                    performSearchAndFilter();
-                    updateMasterCheckbox();
-                }, 300);
+                row.toggle(showRow);
             });
+        }
 
-            $('#filterType, #filterStatus').on('change', function() {
-                performSearchAndFilter();
-                updateMasterCheckbox();
-            });
+        // Слушатели за филтрите
+        $('#filterCustomerType, #filterStatus, #filterMailing, #quickSearch').on('change keyup', applyFilters);
 
-            $('#clearSearch').on('click', function() {
-                $('#quickSearch').val('');
-                $('#filterType').val('');
-                $('#filterStatus').val('');
-                performSearchAndFilter();
-                updateMasterCheckbox();
-            });
-
-            // Групово селектиране
-            $('#masterCheckbox').on('change', function() {
-                const isChecked = $(this).prop('checked');
-                const visibleRows = $('#customersTableBody tr:visible').not('#noResultsRow');
-
-                visibleRows.each(function() {
-                    const checkbox = $(this).find('.customer-checkbox');
-                    const customerId = checkbox.val();
-
-                    if (isChecked) {
-                        checkbox.prop('checked', true);
-                        selectedCustomers.add(customerId);
-                    } else {
-                        checkbox.prop('checked', false);
-                        selectedCustomers.delete(customerId);
-                    }
-                });
-
-                updateBulkActionHeader();
-            });
-
-            $('#selectAllCheckbox').on('change', function() {
-                const isChecked = $(this).prop('checked');
-                const allRows = $('#customersTableBody tr').not('#noResultsRow');
-
-                allRows.each(function() {
-                    const checkbox = $(this).find('.customer-checkbox');
-                    const customerId = checkbox.val();
-
-                    if (isChecked) {
-                        checkbox.prop('checked', true);
-                        selectedCustomers.add(customerId);
-                    } else {
-                        checkbox.prop('checked', false);
-                        selectedCustomers.delete(customerId);
-                    }
-                });
-
-                updateBulkActionHeader();
-            });
-
-            $(document).on('change', '.customer-checkbox', function() {
-                const customerId = $(this).val();
-
-                if ($(this).prop('checked')) {
-                    selectedCustomers.add(customerId);
-                } else {
-                    selectedCustomers.delete(customerId);
-                }
-
-                updateBulkActionHeader();
-            });
-
-            // Групово действие
-            $('.bulk-action-item').on('click', function() {
-                const action = $(this).data('action');
-                performBulkAction(action);
-            });
-
-            $('#clearSelection').on('click', function() {
-                $('.customer-checkbox').prop('checked', false);
-                selectedCustomers.clear();
-                updateBulkActionHeader();
-            });
-
-            // Глобални клавишни комбинации
-            $(document).on('keydown', function(e) {
-                // Ctrl+F за фокус в търсачката
-                if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-                    e.preventDefault();
-                    $('#quickSearch').focus();
-                }
-
-                // Ctrl+A за селектиране на всички видими
-                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-                    e.preventDefault();
-                    $('#masterCheckbox').prop('checked', true).trigger('change');
-                }
-
-                // Escape за изчистване на селекцията
-                if (e.key === 'Escape') {
-                    selectedCustomers.clear();
-                    $('.customer-checkbox').prop('checked', false);
-                    updateBulkActionHeader();
-                }
-            });
-
-            // Инициализация
-            performSearchAndFilter();
+        // Изчистване на търсенето
+        $('#clearSearch').click(function () {
+            $('#quickSearch').val('');
+            applyFilters();
         });
-    </script>
+
+        // ========== ФУНКЦИИ ЗА ГРУПОВ ИЗБОР ==========
+        function updateBulkActionUI() {
+            const count = selectedCustomers.length;
+            const bulkHeader = $('#bulkActionHeader');
+            const bulkButton = $('#bulkActionButton');
+            const selectedCountSpan = $('#selectedCount');
+
+            selectedCountSpan.text(count);
+
+            if (count > 0) {
+                bulkHeader.removeClass('d-none');
+                bulkButton.prop('disabled', false);
+            } else {
+                bulkHeader.addClass('d-none');
+                bulkButton.prop('disabled', true);
+            }
+        }
+
+        // Избор/отмяна на всички
+        $('#masterCheckbox, #selectAllCheckbox').change(function () {
+            const isChecked = $(this).is(':checked');
+            $('.customer-checkbox').prop('checked', isChecked).trigger('change');
+        });
+
+        // Избор на отделен клиент
+        $('.customer-checkbox').change(function () {
+            const customerId = $(this).val();
+            const isChecked = $(this).is(':checked');
+
+            if (isChecked) {
+                if (!selectedCustomers.includes(customerId)) {
+                    selectedCustomers.push(customerId);
+                }
+            } else {
+                selectedCustomers = selectedCustomers.filter(id => id != customerId);
+            }
+
+            updateBulkActionUI();
+            updateSelectedIdsInput();
+        });
+
+        // Изчистване на избора
+        $('#clearSelection').click(function () {
+            selectedCustomers = [];
+            $('.customer-checkbox').prop('checked', false);
+            updateBulkActionUI();
+            updateSelectedIdsInput();
+        });
+
+        // Актуализиране на скритото поле за избрани ID
+        function updateSelectedIdsInput() {
+            $('#selectedIdsInput').val(JSON.stringify(selectedCustomers));
+        }
+
+        // Групово действие
+        $('.bulk-action-item').click(function () {
+            const action = $(this).data('action');
+            
+            if (selectedCustomers.length === 0) {
+                alert('Моля, изберете поне един клиент!');
+                return;
+            }
+
+            if (action === 'export') {
+                // Специален случай за експорт
+                exportSelectedCustomers();
+                return;
+            }
+
+            // Потвърждение за действия, които променят данни
+            if (['activate', 'deactivate', 'make_customer', 'make_supplier', 'include_in_mailing', 'exclude_from_mailing'].includes(action)) {
+                if (!confirm(`Сигурни ли сте, че искате да изпълните това действие върху ${selectedCustomers.length} клиент(а)?`)) {
+                    return;
+                }
+            }
+
+            $('#bulkActionInput').val(action);
+            $('#bulkActionForm').submit();
+        });
+
+        // Функция за експорт на избрани клиенти
+        function exportSelectedCustomers() {
+            const ids = selectedCustomers.join(',');
+            window.location.href = `{{ route('admin.customers.export.all') }}?selected_ids=${ids}`;
+        }
+
+        // ========== ИНИЦИАЛИЗАЦИЯ ==========
+        updateBulkActionUI();
+        applyFilters(); // Прилага филтрите при зареждане на страницата
+    });
+</script>
 @endpush
