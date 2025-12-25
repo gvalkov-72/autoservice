@@ -21,9 +21,6 @@
                     <a class="dropdown-item" href="{{ route('admin.products.export.all', ['format' => 'excel']) }}">
                         <i class="fas fa-file-excel text-success mr-1"></i>Excel (всички)
                     </a>
-                    <a class="dropdown-item" href="{{ route('admin.products.export.all', ['format' => 'csv']) }}">
-                        <i class="fas fa-file-csv text-info mr-1"></i>CSV (всички)
-                    </a>
                 </div>
             </div>
 
@@ -47,8 +44,8 @@
 
                     <!-- Филтри и търсене -->
                     <div class="card-tools d-flex align-items-center" style="gap: 10px;">
-                        <!-- Филтър по тип продукт -->
-                        <div class="input-group input-group-sm" style="width: 200px;">
+                        <!-- Филтър по тип -->
+                        <div class="input-group input-group-sm" style="width: 180px;">
                             <div class="input-group-prepend">
                                 <span class="input-group-text">
                                     <i class="fas fa-filter"></i>
@@ -56,13 +53,13 @@
                             </div>
                             <select id="filterProductType" class="form-control">
                                 <option value="">Всички типове</option>
-                                <option value="product">Стоки</option>
+                                <option value="product">Продукти</option>
                                 <option value="service">Услуги</option>
                             </select>
                         </div>
 
                         <!-- Филтър по активност -->
-                        <div class="input-group input-group-sm" style="width: 180px;">
+                        <div class="input-group input-group-sm" style="width: 160px;">
                             <div class="input-group-prepend">
                                 <span class="input-group-text">
                                     <i class="fas fa-check-circle"></i>
@@ -76,16 +73,16 @@
                         </div>
 
                         <!-- Филтър по наличност -->
-                        <div class="input-group input-group-sm" style="width: 200px;">
+                        <div class="input-group input-group-sm" style="width: 180px;">
                             <div class="input-group-prepend">
                                 <span class="input-group-text">
-                                    <i class="fas fa-box"></i>
+                                    <i class="fas fa-warehouse"></i>
                                 </span>
                             </div>
                             <select id="filterStockStatus" class="form-control">
-                                <option value="">Всякаква наличност</option>
+                                <option value="">Всички наличности</option>
                                 <option value="in_stock">В наличност</option>
-                                <option value="low">Ниски наличности</option>
+                                <option value="low">Ниска наличност</option>
                                 <option value="out">Изчерпани</option>
                             </select>
                         </div>
@@ -98,7 +95,7 @@
                                 </span>
                             </div>
                             <input type="text" id="quickSearch" class="form-control"
-                                placeholder="Търсене по име, SKU, баркод...">
+                                placeholder="Търсене по име, PLU, код, баркод...">
                             <div class="input-group-append">
                                 <button class="btn btn-outline-secondary" type="button" id="clearSearch"
                                     title="Изчисти търсене">
@@ -142,27 +139,21 @@
                                     <div class="dropdown-divider"></div>
                                     <h6 class="dropdown-header">Тип</h6>
                                     <button type="button" class="dropdown-item bulk-action-item" data-action="mark_as_product">
-                                        <i class="fas fa-box text-info mr-2"></i>Маркирай като стока
+                                        <i class="fas fa-box text-info mr-2"></i>Маркирай като продукт
                                     </button>
                                     <button type="button" class="dropdown-item bulk-action-item" data-action="mark_as_service">
-                                        <i class="fas fa-concierge-bell text-warning mr-2"></i>Маркирай като услуга
+                                        <i class="fas fa-tools text-warning mr-2"></i>Маркирай като услуга
                                     </button>
 
                                     <div class="dropdown-divider"></div>
-                                    <h6 class="dropdown-header">Инвентар</h6>
+                                    <h6 class="dropdown-header">Проследяване</h6>
                                     <button type="button" class="dropdown-item bulk-action-item"
-                                        data-action="enable_inventory">
-                                        <i class="fas fa-toggle-on text-primary mr-2"></i>Включи инвентар
+                                        data-action="enable_tracking">
+                                        <i class="fas fa-chart-line text-primary mr-2"></i>Включи проследяване
                                     </button>
                                     <button type="button" class="dropdown-item bulk-action-item"
-                                        data-action="disable_inventory">
-                                        <i class="fas fa-toggle-off text-secondary mr-2"></i>Изключи инвентар
-                                    </button>
-
-                                    <div class="dropdown-divider"></div>
-                                    <h6 class="dropdown-header">Баркод</h6>
-                                    <button type="button" class="dropdown-item bulk-action-item" data-action="generate_barcodes">
-                                        <i class="fas fa-barcode text-dark mr-2"></i>Генерирай баркодове
+                                        data-action="disable_tracking">
+                                        <i class="fas fa-ban text-secondary mr-2"></i>Изключи проследяване
                                     </button>
 
                                     <div class="dropdown-divider"></div>
@@ -191,9 +182,8 @@
                                     </th>
                                     <th width="60" class="text-center">ID</th>
                                     <th>Продукт</th>
-                                    <th width="120">Кодове</th>
-                                    <th width="100">Наличност</th>
-                                    <th width="100">Цена</th>
+                                    <th width="150">Кодове</th>
+                                    <th width="120">Цена и количество</th>
                                     <th width="100">Статус</th>
                                     <th width="140" class="text-center">Действия</th>
                                 </tr>
@@ -202,7 +192,7 @@
                                 @foreach ($products as $product)
                                     <tr data-product-type="{{ $product->is_service ? 'service' : 'product' }}"
                                         data-status="{{ $product->is_active ? 'active' : 'inactive' }}"
-                                        data-stock-status="{{ $product->is_out_of_stock ? 'out' : ($product->is_low_stock ? 'low' : 'in_stock') }}">
+                                        data-stock-status="{{ $product->stock_status }}">
                                         <td class="text-center">
                                             <div class="custom-control custom-checkbox">
                                                 <input type="checkbox" class="custom-control-input product-checkbox"
@@ -219,10 +209,10 @@
                                                 <div class="mr-2">
                                                     @if ($product->is_service)
                                                         <span class="badge bg-warning p-2" title="Услуга">
-                                                            <i class="fas fa-concierge-bell"></i>
+                                                            <i class="fas fa-tools"></i>
                                                         </span>
                                                     @else
-                                                        <span class="badge bg-info p-2" title="Стокa">
+                                                        <span class="badge bg-info p-2" title="Продукт">
                                                             <i class="fas fa-box"></i>
                                                         </span>
                                                     @endif
@@ -233,18 +223,19 @@
                                                         style="font-size: 0.95em; text-decoration: none;">
                                                         {{ $product->name }}
                                                     </a>
-                                                    @if ($product->brand)
-                                                        <div>
-                                                            <small class="text-muted">
-                                                                <i class="fas fa-tag fa-xs mr-1"></i>{{ $product->brand }}
-                                                            </small>
-                                                        </div>
-                                                    @endif
                                                     @if ($product->description)
                                                         <div>
                                                             <small class="text-muted">
                                                                 <i class="fas fa-info-circle fa-xs mr-1"></i>
                                                                 {{ Str::limit($product->description, 50) }}
+                                                            </small>
+                                                        </div>
+                                                    @endif
+                                                    @if ($product->manufacturer)
+                                                        <div>
+                                                            <small class="text-muted">
+                                                                <i class="fas fa-industry fa-xs mr-1"></i>
+                                                                {{ $product->manufacturer }}
                                                             </small>
                                                         </div>
                                                     @endif
@@ -254,9 +245,9 @@
                                                                 <i class="fas fa-database fa-xs mr-1"></i>Старо ID: {{ $product->old_id }}
                                                             </small>
                                                         @endif
-                                                        @if($product->product_number)
+                                                        @if($product->plu && $product->plu != $product->old_id)
                                                             <small class="text-muted ml-2">
-                                                                <i class="fas fa-hashtag fa-xs mr-1"></i>Номер: {{ $product->product_number }}
+                                                                <i class="fas fa-hashtag fa-xs mr-1"></i>PLU: {{ $product->plu }}
                                                             </small>
                                                         @endif
                                                     </div>
@@ -264,53 +255,42 @@
                                             </div>
                                         </td>
                                         <td>
-                                            <div class="mb-1">
-                                                <strong>SKU:</strong>
-                                                <span class="badge badge-light">{{ $product->sku }}</span>
-                                            </div>
-                                            @if ($product->barcode)
-                                                <div class="mb-1">
-                                                    <strong>Баркод:</strong>
-                                                    <span class="badge badge-secondary">{{ $product->barcode }}</span>
+                                            @if ($product->code)
+                                                <div>
+                                                    <small><strong>Код:</strong> {{ $product->code }}</small>
                                                 </div>
                                             @endif
-                                            <div>
-                                                <strong>М.ед:</strong>
-                                                <span class="badge badge-info">{{ $product->unit }}</span>
-                                            </div>
+                                            @if ($product->barcode)
+                                                <div>
+                                                    <small><strong>Баркод:</strong> {{ $product->barcode }}</small>
+                                                </div>
+                                            @endif
+                                            @if ($product->vendor_code)
+                                                <div>
+                                                    <small><strong>Доставчик:</strong> {{ $product->vendor_code }}</small>
+                                                </div>
+                                            @endif
                                         </td>
                                         <td>
-                                            @if ($product->track_inventory)
-                                                <div class="text-center">
-                                                    <span class="h5">{{ $product->stock_quantity }}</span>
-                                                    <div>
-                                                        @if ($product->is_out_of_stock)
-                                                            <span class="badge badge-danger">Изчерпано</span>
-                                                        @elseif ($product->is_low_stock)
-                                                            <span class="badge badge-warning">Ниско</span>
-                                                        @else
-                                                            <span class="badge badge-success">Налично</span>
-                                                        @endif
-                                                    </div>
-                                                    @if ($product->min_stock_level > 0)
-                                                        <small class="text-muted">мин: {{ $product->min_stock_level }}</small>
-                                                    @endif
+                                            <div class="d-flex flex-column">
+                                                <div>
+                                                    <small><strong>Цена:</strong> {{ number_format($product->price, 2) }} лв.</small>
                                                 </div>
-                                            @else
-                                                <span class="badge badge-secondary">Без инвентар</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-right">
-                                            <div class="font-weight-bold">{{ number_format($product->price, 2) }} лв.</div>
-                                            @if ($product->cost_price)
-                                                <small class="text-muted">
-                                                    себест: {{ number_format($product->cost_price, 2) }} лв.
-                                                </small>
-                                                <br>
-                                                <small class="text-success">
-                                                    марж: {{ number_format($product->profit_margin, 1) }}%
-                                                </small>
-                                            @endif
+                                                @if ($product->track_stock)
+                                                    <div>
+                                                        <small><strong>Наличност:</strong> {{ number_format($product->quantity, 2) }} {{ $product->unit_of_measure }}</small>
+                                                    </div>
+                                                    @if ($product->cost_price > 0)
+                                                        <div>
+                                                            <small><strong>Себестойност:</strong> {{ number_format($product->cost_price, 2) }} лв.</small>
+                                                        </div>
+                                                    @endif
+                                                @else
+                                                    <div>
+                                                        <small class="text-muted">Без проследяване</small>
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </td>
                                         <td>
                                             @if ($product->is_active)
@@ -319,10 +299,14 @@
                                                 <span class="badge badge-secondary">Неактивен</span>
                                             @endif
                                             <br>
-                                            @if (!$product->track_inventory)
-                                                <small class="text-muted">
-                                                    <i class="fas fa-ban fa-xs"></i> Без проследяване
-                                                </small>
+                                            @if ($product->track_stock)
+                                                @if ($product->quantity <= 0)
+                                                    <span class="badge badge-danger mt-1">Изчерпан</span>
+                                                @elseif ($product->min_stock > 0 && $product->quantity <= $product->min_stock)
+                                                    <span class="badge badge-warning mt-1">Ниска наличност</span>
+                                                @else
+                                                    <span class="badge badge-info mt-1">В наличност</span>
+                                                @endif
                                             @endif
                                         </td>
                                         <td class="text-center">
@@ -335,12 +319,6 @@
                                                     class="btn btn-primary" title="Редактирай">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                @if ($product->barcode)
-                                                    <a href="{{ route('admin.products.print-barcode', $product) }}"
-                                                       class="btn btn-dark" title="Печат на баркод">
-                                                        <i class="fas fa-barcode"></i>
-                                                    </a>
-                                                @endif
                                                 <form action="{{ route('admin.products.destroy', $product) }}"
                                                     method="POST" class="d-inline">
                                                     @csrf @method('DELETE')
@@ -351,6 +329,13 @@
                                                     </button>
                                                 </form>
                                             </div>
+                                            @if ($product->barcode)
+                                                <a href="{{ route('admin.products.print-barcode', $product) }}"
+                                                   class="btn btn-sm btn-outline-secondary mt-1"
+                                                   title="Печат на баркод">
+                                                    <i class="fas fa-barcode"></i>
+                                                </a>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
@@ -410,8 +395,14 @@
                 }
 
                 // Филтър по наличност
-                if (stockStatus && rowStockStatus !== stockStatus) {
-                    showRow = false;
+                if (stockStatus) {
+                    if (stockStatus === 'in_stock' && rowStockStatus !== 'in_stock') {
+                        showRow = false;
+                    } else if (stockStatus === 'low' && rowStockStatus !== 'low_stock') {
+                        showRow = false;
+                    } else if (stockStatus === 'out' && rowStockStatus !== 'out_of_stock') {
+                        showRow = false;
+                    }
                 }
 
                 // Филтър по търсене
@@ -495,20 +486,14 @@
                 return;
             }
 
-            if (action === 'export' || action === 'generate_barcodes') {
-                // Специален случай за експорт и баркодове
-                if (action === 'generate_barcodes') {
-                    if (!confirm(`Сигурни ли сте, че искате да генерирате баркодове за ${selectedProducts.length} продукт(а)?`)) {
-                        return;
-                    }
-                }
-                $('#bulkActionInput').val(action);
-                $('#bulkActionForm').submit();
+            if (action === 'export') {
+                // Специален случай за експорт
+                exportSelectedProducts();
                 return;
             }
 
             // Потвърждение за действия, които променят данни
-            if (['activate', 'deactivate', 'mark_as_product', 'mark_as_service', 'enable_inventory', 'disable_inventory'].includes(action)) {
+            if (['activate', 'deactivate', 'mark_as_product', 'mark_as_service', 'enable_tracking', 'disable_tracking'].includes(action)) {
                 if (!confirm(`Сигурни ли сте, че искате да изпълните това действие върху ${selectedProducts.length} продукт(а)?`)) {
                     return;
                 }
@@ -517,6 +502,12 @@
             $('#bulkActionInput').val(action);
             $('#bulkActionForm').submit();
         });
+
+        // Функция за експорт на избрани продукти
+        function exportSelectedProducts() {
+            const ids = selectedProducts.join(',');
+            window.location.href = `{{ route('admin.products.export.all') }}?selected_ids=${ids}`;
+        }
 
         // ========== ИНИЦИАЛИЗАЦИЯ ==========
         updateBulkActionUI();

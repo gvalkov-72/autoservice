@@ -1,13 +1,10 @@
 <?php
-// app/Models/Product.php
-// КОРИГИРАН ФАЙЛ БЕЗ CATEGORY ЗАВИСИМОСТИ
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
@@ -19,45 +16,27 @@ class Product extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        // Поля за миграция
         'old_id',
-        'product_number',
-        
-        // Основни данни
-        'sku',
+        'plu',
         'name',
-        'brand',
+        'code',
         'description',
-        
-        // Мерни единици и количество
-        'unit',
-        'uom_code',
-        'quantity',
-        
-        // Цени
         'price',
         'cost_price',
-        'vat_percent',
-        
-        // Складова информация
-        'stock_quantity',
-        'min_stock_level',
-        'reorder_level',
-        
-        // Локации и кодове
+        'quantity',
+        'unit_of_measure',
         'location',
+        'min_stock',
+        'max_stock',
         'barcode',
-        'supplier_code',
-        
-        // Флагове
-        'is_active',
+        'vendor_code',
+        'manufacturer',
+        'vat_rate',
         'is_service',
-        'track_inventory',
-        
-        // Данни за закупки
-        'lead_time_days',
-        'last_purchase_price',
-        'last_purchase_date',
+        'accounting_code',
+        'is_active',
+        'is_taxable',
+        'track_stock',
     ];
 
     /**
@@ -68,65 +47,35 @@ class Product extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'cost_price' => 'decimal:2',
-        'last_purchase_price' => 'decimal:2',
-        'vat_percent' => 'decimal:2',
-        'quantity' => 'integer',
-        'stock_quantity' => 'integer',
-        'min_stock_level' => 'integer',
-        'reorder_level' => 'integer',
-        'lead_time_days' => 'integer',
+        'quantity' => 'decimal:2',
         'is_active' => 'boolean',
+        'is_taxable' => 'boolean',
+        'track_stock' => 'boolean',
         'is_service' => 'boolean',
-        'track_inventory' => 'boolean',
-        'last_purchase_date' => 'date',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
     ];
-
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array
-     */
-    protected $appends = [
-        'total_value',
-        'profit_margin',
-        'is_low_stock',
-        'is_out_of_stock',
-        'full_code',
-    ];
-
-    /**
-     * Get the work order items for the product.
-     */
-    public function workOrderItems(): HasMany
-    {
-        return $this->hasMany(WorkOrderItem::class);
-    }
-
-    /**
-     * Get the invoice items for the product.
-     */
-    public function invoiceItems(): HasMany
-    {
-        return $this->hasMany(InvoiceItem::class);
-    }
 
     /**
      * Get the stock movements for the product.
      */
-    public function stockMovements(): HasMany
+    public function stockMovements()
     {
         return $this->hasMany(StockMovement::class);
     }
 
     /**
-     * Get the supplier that owns the product.
+     * Get the invoice items for the product.
      */
-    public function supplier()
+    public function invoiceItems()
     {
-        return $this->belongsTo(Customer::class, 'supplier_id')->where('is_supplier', true);
+        return $this->hasMany(InvoiceItem::class);
+    }
+
+    /**
+     * Get the work order items for the product.
+     */
+    public function workOrderItems()
+    {
+        return $this->hasMany(WorkOrderItem::class);
     }
 
     /**
@@ -138,19 +87,11 @@ class Product extends Model
     }
 
     /**
-     * Scope a query to only include services.
+     * Scope a query to only include products in stock.
      */
-    public function scopeServices($query)
+    public function scopeInStock($query)
     {
-        return $query->where('is_service', true);
-    }
-
-    /**
-     * Scope a query to only include physical products.
-     */
-    public function scopeProducts($query)
-    {
-        return $query->where('is_service', false);
+        return $query->where('quantity', '>', 0);
     }
 
     /**
@@ -158,9 +99,9 @@ class Product extends Model
      */
     public function scopeLowStock($query)
     {
-        return $query->where('track_inventory', true)
-                    ->whereColumn('stock_quantity', '<=', 'min_stock_level')
-                    ->where('stock_quantity', '>', 0);
+        return $query->whereColumn('quantity', '<=', 'min_stock')
+                    ->where('track_stock', true)
+                    ->where('quantity', '>', 0);
     }
 
     /**
@@ -168,8 +109,8 @@ class Product extends Model
      */
     public function scopeOutOfStock($query)
     {
-        return $query->where('track_inventory', true)
-                    ->where('stock_quantity', '<=', 0);
+        return $query->where('quantity', '<=', 0)
+                    ->where('track_stock', true);
     }
 
     /**
@@ -179,23 +120,11 @@ class Product extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('name', 'like', "%{$search}%")
-              ->orWhere('sku', 'like', "%{$search}%")
-              ->orWhere('product_number', 'like', "%{$search}%")
+              ->orWhere('code', 'like', "%{$search}%")
+              ->orWhere('plu', 'like', "%{$search}%")
               ->orWhere('barcode', 'like', "%{$search}%")
-              ->orWhere('old_id', 'like', "%{$search}%")
               ->orWhere('description', 'like', "%{$search}%");
         });
-    }
-
-    /**
-     * Get the total value attribute.
-     */
-    public function getTotalValueAttribute()
-    {
-        if (!$this->track_inventory) {
-            return 0;
-        }
-        return $this->stock_quantity * $this->cost_price;
     }
 
     /**
@@ -203,102 +132,48 @@ class Product extends Model
      */
     public function getProfitMarginAttribute()
     {
-        if ($this->cost_price == 0) {
-            return 0;
-        }
+        if ($this->cost_price == 0) return 0;
         return (($this->price - $this->cost_price) / $this->cost_price) * 100;
     }
 
     /**
-     * Get the is low stock attribute.
+     * Get the total value attribute.
      */
-    public function getIsLowStockAttribute()
+    public function getTotalValueAttribute()
     {
-        if (!$this->track_inventory) {
-            return false;
-        }
-        return $this->stock_quantity > 0 && $this->stock_quantity <= $this->min_stock_level;
+        return $this->quantity * $this->cost_price;
     }
 
     /**
-     * Get the is out of stock attribute.
+     * Check if product has sufficient stock for given quantity.
      */
-    public function getIsOutOfStockAttribute()
+    public function hasStock($quantity)
     {
-        if (!$this->track_inventory) {
-            return false;
-        }
-        return $this->stock_quantity <= 0;
+        if (!$this->track_stock) return true;
+        return $this->quantity >= $quantity;
     }
 
     /**
-     * Get the full code attribute.
+     * Get the formatted price attribute.
      */
-    public function getFullCodeAttribute()
+    public function getFormattedPriceAttribute()
     {
-        $codes = [];
-        if ($this->old_id) $codes[] = "Старо: {$this->old_id}";
-        if ($this->product_number) $codes[] = "Номер: {$this->product_number}";
-        if ($this->sku) $codes[] = "SKU: {$this->sku}";
-        if ($this->barcode) $codes[] = "Баркод: {$this->barcode}";
-        
-        return implode(' | ', $codes);
+        return number_format($this->price, 2) . ' лв.';
     }
 
     /**
-     * Get the price with VAT attribute.
+     * Get the formatted cost price attribute.
      */
-    public function getPriceWithVatAttribute()
+    public function getFormattedCostPriceAttribute()
     {
-        return $this->price * (1 + ($this->vat_percent / 100));
+        return number_format($this->cost_price, 2) . ' лв.';
     }
 
     /**
-     * Check if product has any activity.
+     * Get the primary code (PLU or Code).
      */
-    public function hasActivity()
+    public function getPrimaryCodeAttribute()
     {
-        return $this->workOrderItems()->count() > 0 
-            || $this->invoiceItems()->count() > 0 
-            || $this->stockMovements()->count() > 0;
-    }
-
-    /**
-     * Update stock quantity.
-     */
-    public function updateStock($quantity, $type = 'adjustment', $notes = null)
-    {
-        $oldQuantity = $this->stock_quantity;
-        $this->stock_quantity += $quantity;
-        $this->save();
-
-        // Log stock movement
-        if ($this->track_inventory) {
-            StockMovement::create([
-                'product_id' => $this->id,
-                'quantity' => $quantity,
-                'type' => $type,
-                'previous_quantity' => $oldQuantity,
-                'new_quantity' => $this->stock_quantity,
-                'notes' => $notes,
-            ]);
-        }
-
-        return $this;
-    }
-
-    /**
-     * Get the last purchase information.
-     */
-    public function getLastPurchaseInfoAttribute()
-    {
-        if (!$this->last_purchase_date) {
-            return 'Няма покупки';
-        }
-        
-        return sprintf('Последна покупка: %s на цена %s лв.',
-            $this->last_purchase_date->format('d.m.Y'),
-            number_format($this->last_purchase_price, 2)
-        );
+        return $this->plu ?? $this->code ?? 'N/A';
     }
 }
