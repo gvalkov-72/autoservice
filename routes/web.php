@@ -4,13 +4,20 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
-
+|--------------------------------------------------------------------------
 | Web Routes
-
+|--------------------------------------------------------------------------
+|
+| Тук се дефинират всички маршрути за уеб приложението. Тези маршрути
+| се зареждат от RouteServiceProvider в рамките на група, която съдържа
+| "web" middleware групата. Сега създайте нещо прекрасно!
+|
 */
 
+// Начална страница - пренасочва към логин
 Route::get('/', fn() => redirect()->route('login'));
 
+// Дашборд - основен панел след логин
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -30,13 +37,56 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     /* --- ОСНОВНИ МОДУЛИ --- */
     Route::resource('customers',   \App\Http\Controllers\Admin\CustomerController::class);
     Route::resource('vehicles',    \App\Http\Controllers\Admin\VehicleController::class);
-    Route::resource('products',    \App\Http\Controllers\Admin\ProductController::class);
+
+    /* --------------------------------------------------------------------------
+       МАРШРУТИ ЗА ПРОДУКТИ (Products)
+       --------------------------------------------------------------------------
+       Основни CRUD операции за управление на продуктите в склада
+       Допълнителни маршрути за експорт, импорт и баркод функционалности
+    */
+    Route::prefix('products')->name('products.')->group(function () {
+        // Основни CRUD маршрути
+        Route::get('/', [\App\Http\Controllers\Admin\ProductController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\Admin\ProductController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\ProductController::class, 'store'])->name('store');
+        Route::get('/{product}', [\App\Http\Controllers\Admin\ProductController::class, 'show'])->name('show');
+        Route::get('/{product}/edit', [\App\Http\Controllers\Admin\ProductController::class, 'edit'])->name('edit');
+        Route::put('/{product}', [\App\Http\Controllers\Admin\ProductController::class, 'update'])->name('update');
+        Route::patch('/{product}', [\App\Http\Controllers\Admin\ProductController::class, 'update']); // Алтернативен маршрут за PATCH
+        Route::delete('/{product}', [\App\Http\Controllers\Admin\ProductController::class, 'destroy'])->name('destroy');
+
+        // Експорт на продукти
+        Route::get('/export/all', [\App\Http\Controllers\Admin\ProductController::class, 'exportAll'])
+            ->name('export.all');
+        Route::post('/export/selected', [\App\Http\Controllers\Admin\ProductController::class, 'exportSelected'])
+            ->name('export.selected');
+
+        // Баркод функционалности
+        Route::get('/{product}/barcode', [\App\Http\Controllers\Admin\ProductController::class, 'barcode'])
+            ->name('barcode');
+
+        // Импорт на продукти
+        Route::get('/import', [\App\Http\Controllers\Admin\ProductController::class, 'import'])
+            ->name('import');
+        Route::post('/import/process', [\App\Http\Controllers\Admin\ProductController::class, 'processImport'])
+            ->name('import.process');
+
+        // Bulk операции (масови действия)
+        Route::post('/bulk-actions', [\App\Http\Controllers\Admin\ProductController::class, 'bulkActions'])
+            ->name('bulk.actions');
+    });
+
+    // Legacy resource маршрут за обратна съвместимост (ако е необходим)
+    // Route::resource('products', \App\Http\Controllers\Admin\ProductController::class);
+
     Route::resource('services',    \App\Http\Controllers\Admin\ServiceController::class);
     Route::resource('service-categories', \App\Http\Controllers\Admin\ServiceCategoryController::class);
     Route::resource('work-orders', \App\Http\Controllers\Admin\WorkOrderController::class);
+
     // ДОБАВЕН МАРШРУТ ЗА ЕКСПОРТ НА WORK ORDERS
     Route::get('work-orders/{workOrder}/export/{type}', [\App\Http\Controllers\Admin\WorkOrderController::class, 'export'])
         ->name('work-orders.export');
+
     Route::resource('invoices',    \App\Http\Controllers\Admin\InvoiceController::class);
 
     /* --- ДАННИ НА АВТОСЕРВИЗА (Company Settings) --- */
@@ -91,13 +141,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         return response(\App\Support\BarcodeHelper::png($code))->header('Content-Type', 'image/png');
     })->name('barcode.png');
 
-    Route::get('products/{product}/barcode', [\App\Http\Controllers\Admin\ProductController::class, 'barcode'])
-        ->name('products.barcode');
-
-    Route::get('api/product-by-sku/{sku}', function (string $sku) {
-        return \App\Models\Product::where('sku', $sku)->first() ?? [];
-    })->name('api.product-by-sku');
-
     /* --- AJAX API за Work Orders --- */
     Route::prefix('api')->name('api.')->group(function () {
         // Търсене на клиенти и автомобили за autocomplete
@@ -135,4 +178,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         ->name('work-orders.search');
 });
 
+/* --------------------------------------------------------------------------
+   АВТЕНТИКАЦИЯ
+   Маршрути за вход, регистрация, потвърждение на имейл, нулиране на парола
+--------------------------------------------------------------------------*/
 require __DIR__ . '/auth.php';
