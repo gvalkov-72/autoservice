@@ -4,9 +4,9 @@
 
 @section('content_header')
     <div class="d-flex justify-content-between align-items-center">
-        <h1 class="m-0">
+        <h4 class="m-0">
             <i class="fas fa-cubes text-primary mr-2"></i>Управление на продукти
-        </h1>
+        </h4>
         <div>
             <!-- Групов експорт -->
             <div class="btn-group mr-2" role="group">
@@ -14,7 +14,7 @@
                     aria-expanded="false">
                     <i class="fas fa-file-export mr-1"></i>Експорт
                 </button>
-                <div class="dropdown-menu">
+                <div class="dropdown-menu" style="font-size: 0.85rem; min-width: 180px;">
                     <a class="dropdown-item" href="{{ route('admin.products.export.all') }}?format=pdf">
                         <i class="fas fa-file-pdf text-danger mr-1"></i>PDF (всички)
                     </a>
@@ -39,61 +39,82 @@
 @stop
 
 @section('content')
+    <!-- ДОБАВЕН ЕДИНСТВЕНО ТОЗИ СТИЛ ЗА НАМАЛЯВАНЕ НА РАЗМЕРИТЕ -->
+    <style>
+        /* Намаляване на всички шрифтове в таблицата */
+        .table {
+            font-size: 0.8rem !important;
+        }
+        
+        /* Намаляване на иконите в таблицата */
+        .table .fas,
+        .table .badge .fas {
+            font-size: 0.7rem !important;
+        }
+        
+        /* Намаляване на заглавията на таблицата */
+        .table thead th {
+            font-size: 0.85rem !important;
+            padding: 0.4rem 0.5rem !important;
+        }
+        
+        /* Намаляване на клетките с данни */
+        .table tbody td {
+            padding: 0.3rem 0.5rem !important;
+        }
+        
+        /* Намаляване на badges (ID, статус, тип) */
+        .table .badge {
+            font-size: 0.7rem !important;
+            padding: 0.2rem 0.4rem !important;
+        }
+        
+        /* Намаляване на текст в secondary елементи */
+        .table .text-muted,
+        .table small {
+            font-size: 0.75rem !important;
+        }
+        
+        /* Намаляване на големите badges за икони */
+        .badge.bg-primary.p-2,
+        .badge.bg-secondary.p-2 {
+            width: 30px !important;
+            height: 30px !important;
+        }
+        
+        /* Намаляване на бутоните за действие */
+        .btn-group-sm > .btn, .btn-sm {
+            padding: 0.15rem 0.35rem !important;
+            font-size: 0.75rem !important;
+        }
+        
+        /* Намаляване на всички dropdown менюта */
+        .dropdown-menu {
+            font-size: 0.85rem !important;
+            min-width: 180px !important;
+        }
+        
+        .dropdown-item {
+            padding: 0.25rem 1rem !important;
+        }
+        
+        .dropdown-header {
+            padding: 0.5rem 1rem !important;
+            font-size: 0.8rem !important;
+        }
+        
+        /* Стил за групово действие dropdown */
+        #bulkActionButton + .dropdown-menu {
+            font-size: 0.85rem !important;
+        }
+    </style>
+
     <div class="row">
         <div class="col-12">
             <div class="card card-primary card-outline">
                 <div class="card-header border-bottom-0 pb-0">
-                    <h3 class="card-title">
-                        <i class="fas fa-list mr-1"></i>
-                        Списък на продукти
-                    </h3>
-
-                    <!-- Филтри и търсене -->
-                    <div class="card-tools d-flex align-items-center" style="gap: 10px;">
-                        <!-- Филтър по активност -->
-                        <div class="input-group input-group-sm" style="width: 180px;">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text">
-                                    <i class="fas fa-check-circle"></i>
-                                </span>
-                            </div>
-                            <select id="filterStatus" class="form-control">
-                                <option value="">Всички статуси</option>
-                                <option value="active">Активни</option>
-                                <option value="inactive">Неактивни</option>
-                            </select>
-                        </div>
-
-                        <!-- Филтър по складова наличност -->
-                        <div class="input-group input-group-sm" style="width: 200px;">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text">
-                                    <i class="fas fa-box"></i>
-                                </span>
-                            </div>
-                            <select id="filterStock" class="form-control">
-                                <option value="">Всички наличности</option>
-                                <option value="low">Ниски наличности</option>
-                                <option value="out">Изчерпани</option>
-                                <option value="normal">Нормални</option>
-                            </select>
-                        </div>
-
-                        <!-- Филтър по тип (продукт/услуга) -->
-                        <div class="input-group input-group-sm" style="width: 200px;">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text">
-                                    <i class="fas fa-tag"></i>
-                                </span>
-                            </div>
-                            <select id="filterType" class="form-control">
-                                <option value="">Всички типове</option>
-                                <option value="product">Продукти</option>
-                                <option value="service">Услуги</option>
-                            </select>
-                        </div>
-
-                        <!-- Търсачка -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <!-- Търсачката е преместена ТУК - в ляво -->
                         <div class="input-group input-group-sm" style="width: 300px;">
                             <div class="input-group-prepend">
                                 <span class="input-group-text">
@@ -107,6 +128,54 @@
                                     title="Изчисти търсене">
                                     <i class="fas fa-times"></i>
                                 </button>
+                            </div>
+                        </div>
+                        
+
+                        
+                        <!-- Филтрите са останали в дясно -->
+                        <div class="card-tools d-flex align-items-center" style="gap: 10px;">
+                            <!-- Филтър по активност -->
+                            <div class="input-group input-group-sm" style="width: 180px;">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-check-circle"></i>
+                                    </span>
+                                </div>
+                                <select id="filterStatus" class="form-control">
+                                    <option value="">Всички статуси</option>
+                                    <option value="active">Активни</option>
+                                    <option value="inactive">Неактивни</option>
+                                </select>
+                            </div>
+
+                            <!-- Филтър по складова наличност -->
+                            <div class="input-group input-group-sm" style="width: 200px;">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-box"></i>
+                                    </span>
+                                </div>
+                                <select id="filterStock" class="form-control">
+                                    <option value="">Всички наличности</option>
+                                    <option value="low">Ниски наличности</option>
+                                    <option value="out">Изчерпани</option>
+                                    <option value="normal">Нормални</option>
+                                </select>
+                            </div>
+
+                            <!-- Филтър по тип (продукт/услуга) -->
+                            <div class="input-group input-group-sm" style="width: 200px;">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-tag"></i>
+                                    </span>
+                                </div>
+                                <select id="filterType" class="form-control">
+                                    <option value="">Всички типове</option>
+                                    <option value="product">Продукти</option>
+                                    <option value="service">Услуги</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -132,7 +201,7 @@
                                     data-toggle="dropdown" id="bulkActionButton" disabled>
                                     Групово действие
                                 </button>
-                                <div class="dropdown-menu">
+                                <div class="dropdown-menu" style="font-size: 0.85rem; min-width: 200px;">
                                     <h6 class="dropdown-header">Статус</h6>
                                     <button type="button" class="dropdown-item bulk-action-item" data-action="activate">
                                         <i class="fas fa-check text-success mr-2"></i>Активирай
