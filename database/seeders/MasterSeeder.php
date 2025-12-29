@@ -17,6 +17,7 @@ class MasterSeeder extends Seeder
             //VehicleSeeder::class,
             ProductImportSeeder::class,
             //ProductSeeder::class,
+            InvoiceImportSeeder::class,
             ServiceSeeder::class,
         ]);
     }
