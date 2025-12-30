@@ -18,30 +18,30 @@ class Vehicle extends Model
         // Стар системен идентификатор и партиден импорт
         'old_system_id',
         'import_batch',
-        
+
         // Връзка с клиент
         'customer_id',
-        
+
         // Основни идентификатори
         'vin',
         'chassis',
         'plate',
         'dk_no',
-        
+
         // Марка и модел
         'make',
         'model',
-        
+
         // Допълнителни данни от Access
         'year',
         'mileage',
         'monitor_code',
-        
+
         // Метаданни за импорта от Access
         'order_reference',
         'po_date',
         'author',
-        
+
         // Бележки и статус
         'notes',
         'is_active',
@@ -65,6 +65,11 @@ class Vehicle extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
     /**
      * Връзка с работни поръчки
      */
@@ -76,7 +81,7 @@ class Vehicle extends Model
     /**
      * ========== SCOPES ==========
      */
-    
+
     /**
      * Обхват за активни превозни средства
      */
@@ -99,7 +104,7 @@ class Vehicle extends Model
     public function scopeSearchByVin($query, $vin)
     {
         return $query->where('vin', 'LIKE', "%{$vin}%")
-                    ->orWhere('chassis', 'LIKE', "%{$vin}%");
+            ->orWhere('chassis', 'LIKE', "%{$vin}%");
     }
 
     /**
@@ -108,7 +113,7 @@ class Vehicle extends Model
     public function scopeSearchByMakeModel($query, $search)
     {
         return $query->where('make', 'LIKE', "%{$search}%")
-                    ->orWhere('model', 'LIKE', "%{$search}%");
+            ->orWhere('model', 'LIKE', "%{$search}%");
     }
 
     /**
@@ -122,7 +127,7 @@ class Vehicle extends Model
     /**
      * ========== ACCESSORS ==========
      */
-    
+
     /**
      * Пълно име на превозното средство (марка + модел)
      */
@@ -151,7 +156,7 @@ class Vehicle extends Model
         if (!$this->year) {
             return null;
         }
-        
+
         $currentYear = date('Y');
         return $currentYear - $this->year;
     }
@@ -180,7 +185,7 @@ class Vehicle extends Model
         if (!$this->po_date) {
             return null;
         }
-        
+
         return $this->po_date->format('d.m.Y');
     }
 
@@ -203,7 +208,7 @@ class Vehicle extends Model
     /**
      * ========== MUTATORS ==========
      */
-    
+
     /**
      * Автоматично форматиране на регистрационния номер
      */
@@ -239,7 +244,7 @@ class Vehicle extends Model
     /**
      * ========== HELPERS ==========
      */
-    
+
     /**
      * Проверка дали превозното средство е активно
      */

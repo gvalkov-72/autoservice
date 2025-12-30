@@ -90,6 +90,11 @@ class Invoice extends Model
         'is_paid' => false,
     ];
 
+    public function vehicle()
+    {
+        return $this->belongsTo(Vehicle::class);
+    }
+
     /**
      * Get the customer that owns the invoice.
      */
@@ -136,10 +141,10 @@ class Invoice extends Model
     public function scopeOverdue($query)
     {
         return $query->where('payment_status', 'overdue')
-                    ->orWhere(function ($query) {
-                        $query->where('payment_status', 'pending')
-                              ->whereDate('due_date', '<', now());
-                    });
+            ->orWhere(function ($query) {
+                $query->where('payment_status', 'pending')
+                    ->whereDate('due_date', '<', now());
+            });
     }
 
     /**
