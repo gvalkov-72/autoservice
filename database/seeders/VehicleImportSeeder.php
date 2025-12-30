@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\DB;
 class VehicleImportSeeder extends Seeder
 {
     /**
-     * Seeder за създаване на служебни автомобили
-     * за всички клиенти, импортирани от Access,
+     * Seeder за автоматично създаване на автомобили
+     * за всеки клиент, който няма такъв,
      * и връзване на старите фактури към тях.
      */
     public function run(): void
@@ -21,31 +21,29 @@ class VehicleImportSeeder extends Seeder
 
             $this->command->info('Започва обработка на клиенти и автомобили...');
 
-            $customers = Customer::with(['vehicles', 'invoices'])->get();
+            $customers = Customer::with(['vehicles'])->get();
 
             foreach ($customers as $customer) {
 
-                // Проверка дали клиентът вече има автомобил
+                // Ако клиентът няма автомобил – създаваме служебен
                 if ($customer->vehicles->count() === 0) {
 
-                    // Създаваме служебен автомобил
                     $vehicle = Vehicle::create([
                         'customer_id' => $customer->id,
-                        'brand'       => 'Импортиран',
-                        'model'       => 'Неизвестен',
-                        'vin'         => null,
-                        'year'        => null,
-                        'engine'      => null,
-                        'fuel_type'   => null,
-                        'notes'       => 'Автоматично създаден автомобил при импорт от Access'
+                        'make'        => 'Импортиран',   // марка
+                        'model'       => 'Неизвестен',  // модел
+                        'vin'         => null,          // VIN (ако няма)
+                        'plate'       => null,          // регистрационен номер
+                        'notes'       => 'Автоматично създаден автомобил при импорт от Access',
+                        'is_active'   => true,
                     ]);
 
                     $this->command->info(
-                        "✔ Създаден автомобил за клиент ID {$customer->id}"
+                        "✔ Създаден служебен автомобил за клиент ID {$customer->id}"
                     );
 
                 } else {
-                    // Ако вече има автомобил – използваме първия
+                    // Ако вече има автомобил – ползваме първия
                     $vehicle = $customer->vehicles->first();
                 }
 
