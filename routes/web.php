@@ -178,6 +178,10 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         ->name('work-orders.search');
 });
 
+Route::get('/invoices/{invoice}/pdf', [App\Http\Controllers\InvoicePdfController::class, 'show'])
+    ->name('invoices.pdf');
+
+
 /* --------------------------------------------------------------------------
    АВТЕНТИКАЦИЯ
    Маршрути за вход, регистрация, потвърждение на имейл, нулиране на парола
