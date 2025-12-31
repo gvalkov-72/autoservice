@@ -3,36 +3,33 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payment extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'invoice_id',
         'amount',
-        'method',
-        'paid_at',
-        'reference',
-        'created_by',
+        'payment_method',
+        'payment_date',
+        'notes',
     ];
 
     protected $casts = [
-        'amount'  => 'decimal:2',
-        'paid_at' => 'date',
+        'payment_date' => 'date',
+        'amount' => 'decimal:2',
     ];
 
-    public function invoice(): BelongsTo
+    /*
+    |--------------------------------------------------------------------------
+    | RELATIONS
+    |--------------------------------------------------------------------------
+    */
+
+    public function invoice()
     {
         return $this->belongsTo(Invoice::class);
-    }
-
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function scopeOverdue($query)
-    {
-        return $query->where('paid_at', '<', now()->subDays(14));
     }
 }

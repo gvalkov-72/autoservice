@@ -2,17 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InvoiceItem extends Model
 {
-    use HasFactory, SoftDeletes;
+    use SoftDeletes;
 
-    /**
-     * Атрибути, които могат да бъдат попълвани масово
-     */
     protected $fillable = [
         'invoice_id',
         'line_number',
@@ -21,31 +17,51 @@ class InvoiceItem extends Model
         'unit_of_measure',
         'quantity',
         'unit_price',
+        'vat_rate',
+        'vat_amount',
         'total_price',
     ];
 
-    /**
-     * Кастване на типове
-     */
     protected $casts = [
-        'quantity' => 'decimal:2',
-        'unit_price' => 'decimal:2',
-        'total_price' => 'decimal:2',
+        'quantity'     => 'decimal:2',
+        'unit_price'   => 'decimal:2',
+        'vat_rate'     => 'decimal:2',
+        'vat_amount'   => 'decimal:2',
+        'total_price'  => 'decimal:2',
     ];
 
-    /**
-     * Връзка към фактурата
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
+
     /**
-     * Връзка към продукт (ако имаме product_code)
+     * Изчислява ДДС и крайна цена за ред
      */
-    public function product()
+    public function calculateTotals(): void
     {
-        return $this->belongsTo(Product::class, 'product_code', 'code');
+        $net = $this->quantity * $this->unit_price;
+
+        $this->vat_amount = round(
+            $net * ($this->vat_rate / 100),
+            2
+        );
+
+        $this->total_price = round(
+            $net + $this->vat_amount,
+            2
+        );
     }
 }
