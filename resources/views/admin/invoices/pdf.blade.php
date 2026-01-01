@@ -2,6 +2,7 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
+
     <style>
         body {
             font-family: DejaVu Sans, sans-serif;
@@ -9,176 +10,191 @@
             color: #000;
         }
 
-        .container {
-            width: 100%;
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 20px;
-            margin-bottom: 5px;
-        }
-
-        .subtitle {
-            text-align: center;
-            font-size: 12px;
-            margin-bottom: 20px;
-        }
-
-        table {
+        .header-table {
             width: 100%;
             border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 6px;
-            border: 1px solid #000;
-        }
-
-        .no-border td {
-            border: none;
-            padding: 3px;
+            margin-bottom: 15px;
         }
 
         .header-table td {
             vertical-align: top;
         }
 
+        .logo {
+            width: 180px;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 10px 0 20px 0;
+            font-size: 20px;
+        }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        .info-table td {
+            width: 50%;
+            padding: 6px;
+            border: 1px solid #000;
+            vertical-align: top;
+        }
+
+        table.items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table.items th,
+        table.items td {
+            border: 1px solid #000;
+            padding: 6px;
+        }
+
+        table.items th {
+            background-color: #f2f2f2;
+            text-align: center;
+        }
+
         .right {
             text-align: right;
         }
 
-        .center {
-            text-align: center;
-        }
-
-        .bold {
-            font-weight: bold;
-        }
-
-        .items th {
-            background-color: #f2f2f2;
-        }
-
-        .totals {
+        .totals-table {
             width: 40%;
+            border-collapse: collapse;
+            margin-top: 15px;
             float: right;
-            margin-top: 10px;
+        }
+
+        .totals-table td {
+            border: 1px solid #000;
+            padding: 6px;
+        }
+
+        .signatures {
+            width: 100%;
+            margin-top: 80px;
+            border-collapse: collapse;
+        }
+
+        .signatures td {
+            width: 50%;
+            text-align: center;
+            padding-top: 40px;
+        }
+
+        .signature-line {
+            border-top: 1px solid #000;
+            width: 70%;
+            margin: 0 auto 5px auto;
         }
 
         .clearfix {
             clear: both;
         }
-
-        .footer {
-            margin-top: 40px;
-            font-size: 11px;
-        }
     </style>
 </head>
 <body>
 
-<div class="container">
+{{-- HEADER --}}
+<table class="header-table">
+    <tr>
+        <td>
+            <img
+                src="{{ public_path('images/logo.png') }}"
+                class="logo"
+                alt="Logo">
+        </td>
+        <td class="right">
+            <strong>Фактура №:</strong> {{ $invoice->invoice_number }}<br>
+            <strong>Дата на издаване:</strong> {{ $invoice->issue_date->format('d.m.Y') }}<br>
+            <strong>Дата на данъчно събитие:</strong> {{ $invoice->tax_event_date->format('d.m.Y') }}
+        </td>
+    </tr>
+</table>
 
-    <!-- Заглавие -->
-    <h1>ФАКТУРА</h1>
-    <div class="subtitle">Оригинал</div>
+<h1>ФАКТУРА – ОРИГИНАЛ</h1>
 
-    <!-- Горна част: доставчик / фактура -->
-    <table class="no-border header-table">
+{{-- ДОСТАВЧИК / ПОЛУЧАТЕЛ --}}
+<table class="info-table">
+    <tr>
+        <td>
+            <strong>Доставчик:</strong><br>
+            {{ config('company.name') }}<br>
+            {{ config('company.address') }}<br>
+            ЕИК: {{ config('company.eik') }}<br>
+            ДДС №: {{ config('company.vat_number') }}
+        </td>
+        <td>
+            <strong>Получател:</strong><br>
+            {{ $invoice->customer->name }}<br>
+            {{ $invoice->customer->address }}<br>
+            ЕИК: {{ $invoice->customer->eik }}<br>
+            ДДС №: {{ $invoice->customer->vat_number }}
+        </td>
+    </tr>
+</table>
+
+{{-- ПОЗИЦИИ --}}
+<table class="items">
+    <thead>
         <tr>
-            <td width="60%">
-                <strong>Доставчик:</strong><br>
-                {{ config('company.name') }}<br>
-                {{ config('company.address') }}<br>
-                ЕИК: {{ config('company.eik') }}<br>
-                ДДС №: {{ config('company.vat_number') }}
-            </td>
-            <td width="40%">
-                <table>
-                    <tr>
-                        <td class="bold">Фактура №</td>
-                        <td class="right">{{ $invoice->invoice_number }}</td>
-                    </tr>
-                    <tr>
-                        <td class="bold">Дата на издаване</td>
-                        <td class="right">{{ $invoice->issue_date->format('d.m.Y') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="bold">Данъчно събитие</td>
-                        <td class="right">{{ $invoice->tax_event_date->format('d.m.Y') }}</td>
-                    </tr>
-                </table>
-            </td>
+            <th>#</th>
+            <th>Описание</th>
+            <th>Кол.</th>
+            <th>Ед. цена</th>
+            <th>Общо</th>
         </tr>
-    </table>
-
-    <br>
-
-    <!-- Получател -->
-    <table>
-        <tr>
-            <td>
-                <strong>Получател:</strong><br>
-                {{ $invoice->customer->name }}<br>
-                {{ $invoice->customer->address }}<br>
-                ЕИК: {{ $invoice->customer->eik }}<br>
-                ДДС №: {{ $invoice->customer->vat_number }}
-            </td>
-        </tr>
-    </table>
-
-    <br>
-
-    <!-- Позиции -->
-    <table class="items">
-        <thead>
-        <tr>
-            <th width="5%">№</th>
-            <th width="45%">Описание</th>
-            <th width="10%" class="right">Кол.</th>
-            <th width="15%" class="right">Ед. цена</th>
-            <th width="25%" class="right">Общо</th>
-        </tr>
-        </thead>
-        <tbody>
-        @foreach($invoice->items as $i => $item)
+    </thead>
+    <tbody>
+        @foreach($invoice->items as $index => $item)
             <tr>
-                <td class="center">{{ $i + 1 }}</td>
+                <td class="right">{{ $index + 1 }}</td>
                 <td>{{ $item->description }}</td>
                 <td class="right">{{ number_format($item->quantity, 2) }}</td>
                 <td class="right">{{ number_format($item->unit_price, 2) }} лв</td>
-                <td class="right">{{ number_format($item->total, 2) }} лв</td>
+                <td class="right">{{ number_format($item->total_price, 2) }} лв</td>
             </tr>
         @endforeach
-        </tbody>
-    </table>
+    </tbody>
+</table>
 
-    <!-- Обобщение -->
-    <table class="totals">
-        <tr>
-            <td class="bold">Данъчна основа</td>
-            <td class="right">{{ number_format($invoice->net_total, 2) }} лв</td>
-        </tr>
-        <tr>
-            <td class="bold">ДДС ({{ $invoice->vat_rate }}%)</td>
-            <td class="right">{{ number_format($invoice->vat_amount, 2) }} лв</td>
-        </tr>
-        <tr>
-            <td class="bold">ОБЩО</td>
-            <td class="right bold">{{ number_format($invoice->grand_total, 2) }} лв</td>
-        </tr>
-    </table>
+{{-- СУМИ --}}
+<table class="totals-table">
+    <tr>
+        <td>Данъчна основа</td>
+        <td class="right">{{ number_format($invoice->net_total, 2) }} лв</td>
+    </tr>
+    <tr>
+        <td>ДДС ({{ $invoice->vat_rate }}%)</td>
+        <td class="right">{{ number_format($invoice->vat_amount, 2) }} лв</td>
+    </tr>
+    <tr>
+        <td><strong>ОБЩО</strong></td>
+        <td class="right"><strong>{{ number_format($invoice->grand_total, 2) }} лв</strong></td>
+    </tr>
+</table>
 
-    <div class="clearfix"></div>
+<div class="clearfix"></div>
 
-    <!-- Плащане -->
-    <div class="footer">
-        <strong>Начин на плащане:</strong>
-        {{ $invoice->payments->pluck('payment_method')->unique()->join(', ') }}
-    </div>
-
-</div>
+{{-- ПОДПИСИ --}}
+<table class="signatures">
+    <tr>
+        <td>
+            <div class="signature-line"></div>
+            <strong>Издал</strong>
+        </td>
+        <td>
+            <div class="signature-line"></div>
+            <strong>Получил</strong>
+        </td>
+    </tr>
+</table>
 
 </body>
 </html>

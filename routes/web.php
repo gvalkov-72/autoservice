@@ -178,7 +178,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         ->name('work-orders.search');
 });
 
-Route::get('/invoices/{invoice}/pdf', [App\Http\Controllers\InvoicePdfController::class, 'show'])
+Route::get('/invoices/{invoice}/pdf', [\App\Http\Controllers\Admin\InvoicePdfController::class, 'show'])
     ->name('invoices.pdf');
 
 

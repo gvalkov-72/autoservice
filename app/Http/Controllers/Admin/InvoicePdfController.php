@@ -1,33 +1,33 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoicePdfController extends Controller
 {
     /**
-     * Показва PDF на фактура
+     * Показване на PDF фактура
      */
     public function show(Invoice $invoice)
     {
-        // Зареждаме всички нужни връзки предварително
+        // Зареждаме нужните релации
         $invoice->load([
             'customer',
             'items',
             'payments',
         ]);
 
-        // Генериране на PDF от Blade изгледа
+        // Генерираме PDF от admin view
         $pdf = Pdf::loadView('admin.invoices.pdf', [
             'invoice' => $invoice,
-        ]);
+        ])->setPaper('A4', 'portrait');
 
-        // Име на файла при изтегляне
-        $fileName = 'invoice_' . $invoice->invoice_number . '.pdf';
-
-        // Показване директно в браузъра
-        return $pdf->stream($fileName);
+        // Показване в браузъра
+        return $pdf->stream(
+            'invoice_' . $invoice->invoice_number . '.pdf'
+        );
     }
 }
