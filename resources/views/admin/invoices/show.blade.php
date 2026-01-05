@@ -3,62 +3,279 @@
 @section('title', 'Преглед на фактура')
 
 @section('content_header')
-    <h1>Фактура № {{ $invoice->number }}</h1>
-@stop
-
-@section('content')
-    <div class="card">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4">
-                    <p><strong>Клиент:</strong> {{ $invoice->customer->name }}</p>
-                    <p><strong>Дата на издаване:</strong>
-                        {{ $invoice->issue_date ? \Carbon\Carbon::parse($invoice->issue_date)->format('d.m.Y') : '-' }}</p>
-                    <p><strong>Падеж:</strong>
-                        {{ $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y') : '-' }}</p>
-                </div>
-                <div class="col-md-4">
-                    <p><strong>Поръчка:</strong> {{ $invoice->workOrder->number ?? '-' }}</p>
-                    <p><strong>Начин на плащане:</strong> {{ $invoice->payment_method ?? '-' }}</p>
-                    <p><strong>Статус:</strong> {{ $invoice->status }}</p>
-                </div>
-                <div class="col-md-4">
-                    <p><strong>Общо без ДДС:</strong> {{ number_format($invoice->subtotal, 2) }} лв.</p>
-                    <p><strong>ДДС:</strong> {{ number_format($invoice->vat_total, 2) }} лв.</p>
-                    <p><strong>Общо:</strong> {{ number_format($invoice->grand_total, 2) }} лв.</p>
-                </div>
-            </div>
-            <hr>
-            <h4>Позиции</h4>
-            <table class="table table-sm table-bordered">
-                <thead>
-                    <tr>
-                        <th>№</th>
-                        <th>Описание</th>
-                        <th>Количество</th>
-                        <th>Цена (без ДДС)</th>
-                        <th>ДДС %</th>
-                        <th>Общо</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($invoice->items as $item)
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td>{{ $item->description }}</td>
-                            <td>{{ $item->quantity }}</td>
-                            <td>{{ number_format($item->unit_price, 2) }} лв.</td>
-                            <td>{{ $item->vat_percent }} %</td>
-                            <td>{{ number_format($item->line_total, 2) }} лв.</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        <div class="card-footer">
-            <a href="{{ route('admin.invoices.edit', $invoice) }}" class="btn btn-primary">Редактирай</a>
-            <a href="#" class="btn btn-secondary">PDF</a>
-            <a href="{{ route('admin.invoices.index') }}" class="btn btn-secondary">Назад</a>
+    <div class="d-flex justify-content-between align-items-center">
+        <h1 class="m-0">
+            <i class="fas fa-file-invoice text-primary mr-2"></i>Фактура № {{ $invoice->invoice_number }}
+        </h1>
+        <div class="btn-group">
+            <a href="{{ route('admin.invoices.edit', $invoice) }}" class="btn btn-primary">
+                <i class="fas fa-edit mr-1"></i>Редактирай
+            </a>
+            <a href="{{ route('admin.invoices.pdf', $invoice) }}" class="btn btn-success" target="_blank">
+                <i class="fas fa-file-pdf mr-1"></i>PDF
+            </a>
+            <a href="{{ route('admin.invoices.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i>Назад
+            </a>
         </div>
     </div>
 @stop
+
+@section('content')
+    <div class="row">
+        <div class="col-12">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">Информация за фактурата</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card card-light">
+                                <div class="card-header">
+                                    <h3 class="card-title">Данни за клиента</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Клиент:</strong> {{ $invoice->customer->name ?? 'Няма клиент' }}</p>
+                                    <p><strong>Телефон:</strong> {{ $invoice->customer->phone ?? '-' }}</p>
+                                    <p><strong>Имейл:</strong> {{ $invoice->customer->email ?? '-' }}</p>
+                                    <p><strong>Адрес:</strong> {{ $invoice->customer->address ?? '-' }}</p>
+                                    <p><strong>ЕИК:</strong> {{ $invoice->customer->eik ?? '-' }}</p>
+                                    <p><strong>ДДС №:</strong> {{ $invoice->customer->vat_number ?? '-' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card card-light">
+                                <div class="card-header">
+                                    <h3 class="card-title">Данни за фактурата</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Номер на фактура:</strong> {{ $invoice->invoice_number }}</p>
+                                    <p><strong>Дата на издаване:</strong> {{ $invoice->issue_date ? \Carbon\Carbon::parse($invoice->issue_date)->format('d.m.Y') : '-' }}</p>
+                                    <p><strong>Дата на падеж:</strong> {{ $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y') : '-' }}</p>
+                                    <p><strong>Дата на данъчно събитие:</strong> {{ $invoice->tax_event_date ? \Carbon\Carbon::parse($invoice->tax_event_date)->format('d.m.Y') : '-' }}</p>
+                                    <p><strong>Статус на плащане:</strong> 
+                                        <span class="badge badge-{{ $invoice->payment_status === 'paid' ? 'success' : 'warning' }}">
+                                            {{ $invoice->payment_status === 'paid' ? 'Платена' : 'Неплатена' }}
+                                        </span>
+                                    </p>
+                                    <p><strong>Статус:</strong> 
+                                        <span class="badge badge-{{ $invoice->is_active ? 'success' : 'secondary' }}">
+                                            {{ $invoice->is_active ? 'Активна' : 'Неактивна' }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card card-light">
+                                <div class="card-header">
+                                    <h3 class="card-title">Финансова информация</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="info-box bg-light">
+                                                <div class="info-box-content">
+                                                    <span class="info-box-text text-center">Общо без ДДС</span>
+                                                    <span class="info-box-number text-center display-6">{{ number_format($invoice->net_total ?? 0, 2) }} лв</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="info-box bg-light">
+                                                <div class="info-box-content">
+                                                    <span class="info-box-text text-center">ДДС ({{ $invoice->vat_rate ?? 0 }}%)</span>
+                                                    <span class="info-box-number text-center display-6">{{ number_format($invoice->vat_amount ?? 0, 2) }} лв</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="info-box bg-success">
+                                                <div class="info-box-content">
+                                                    <span class="info-box-text text-center text-white">Обща сума</span>
+                                                    <span class="info-box-number text-center display-6 text-white">{{ number_format($invoice->grand_total ?? 0, 2) }} лв</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h4 class="mb-3">
+                        <i class="fas fa-list mr-2"></i>Позиции
+                    </h4>
+                    
+                    @if($invoice->items && count($invoice->items) > 0)
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th width="40">№</th>
+                                    <th>Описание</th>
+                                    <th width="100">Мярка</th>
+                                    <th width="100">Количество</th>
+                                    <th width="120">Ед. цена</th>
+                                    <th width="100">Отстъпка %</th>
+                                    <th width="120">Отстъпка ст-т</th>
+                                    <th width="120">Стойност</th>
+                                    <th width="80">ДДС %</th>
+                                    <th width="120">ДДС ст-т</th>
+                                    <th width="140">Общо</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php
+                                    $totalSubtotal = 0;
+                                    $totalVatAmount = 0;
+                                    $totalGrandTotal = 0;
+                                @endphp
+                                
+                                @foreach($invoice->items as $index => $item)
+                                    @php
+                                        $quantity = $item->quantity ?? 1;
+                                        $unitPrice = $item->unit_price ?? 0;
+                                        $discountPercent = $item->discount_percent ?? 0;
+                                        $discountAmount = $quantity * $unitPrice * ($discountPercent / 100);
+                                        $subtotal = ($quantity * $unitPrice) - $discountAmount;
+                                        $vatPercent = $item->vat_percent ?? 20;
+                                        $vatAmount = $subtotal * ($vatPercent / 100);
+                                        $totalWithVat = $subtotal + $vatAmount;
+                                        
+                                        $totalSubtotal += $subtotal;
+                                        $totalVatAmount += $vatAmount;
+                                        $totalGrandTotal += $totalWithVat;
+                                    @endphp
+                                    <tr>
+                                        <td class="text-center">{{ $index + 1 }}</td>
+                                        <td>{{ $item->description }}</td>
+                                        <td class="text-center">{{ $item->unit ?? 'бр.' }}</td>
+                                        <td class="text-right">{{ number_format($quantity, 2) }}</td>
+                                        <td class="text-right">{{ number_format($unitPrice, 2) }} лв</td>
+                                        <td class="text-right">{{ number_format($discountPercent, 2) }}%</td>
+                                        <td class="text-right">{{ number_format($discountAmount, 2) }} лв</td>
+                                        <td class="text-right">{{ number_format($subtotal, 2) }} лв</td>
+                                        <td class="text-right">{{ number_format($vatPercent, 2) }}%</td>
+                                        <td class="text-right">{{ number_format($vatAmount, 2) }} лв</td>
+                                        <td class="text-right font-weight-bold">{{ number_format($totalWithVat, 2) }} лв</td>
+                                    </tr>
+                                @endforeach
+                                
+                                <!-- Обобщена информация -->
+                                <tr class="table-success font-weight-bold">
+                                    <td colspan="7" class="text-right">Общо:</td>
+                                    <td class="text-right">{{ number_format($totalSubtotal, 2) }} лв</td>
+                                    <td class="text-right">-</td>
+                                    <td class="text-right">{{ number_format($totalVatAmount, 2) }} лв</td>
+                                    <td class="text-right">{{ number_format($totalGrandTotal, 2) }} лв</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Няма добавени позиции към тази фактура.
+                    </div>
+                    @endif
+                    
+                    @if($invoice->notes)
+                    <div class="mt-4">
+                        <h5><i class="fas fa-sticky-note mr-2"></i>Бележки</h5>
+                        <div class="alert alert-info">
+                            {{ $invoice->notes }}
+                        </div>
+                    </div>
+                    @endif
+                </div>
+                
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">
+                                <i class="fas fa-calendar mr-1"></i>Създадена на: {{ $invoice->created_at->format('d.m.Y H:i') }}
+                            </small>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ route('admin.invoices.edit', $invoice) }}" class="btn btn-primary">
+                                <i class="fas fa-edit mr-1"></i>Редактирай
+                            </a>
+                            <a href="{{ route('admin.invoices.pdf', $invoice) }}" class="btn btn-success" target="_blank">
+                                <i class="fas fa-file-pdf mr-1"></i>PDF
+                            </a>
+                            <a href="{{ route('admin.invoices.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left mr-1"></i>Назад
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@stop
+
+@push('css')
+    <style>
+        .info-box {
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .info-box:hover {
+            transform: translateY(-5px);
+        }
+        
+        .info-box-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .info-box-number {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .display-6 {
+            font-size: 2.5rem;
+        }
+        
+        .table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .table td {
+            vertical-align: middle;
+        }
+        
+        .badge {
+            font-size: 0.9rem;
+            padding: 0.5rem 0.8rem;
+        }
+        
+        .card-header {
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .card-light {
+            border: 1px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .card-light .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+    </style>
+@endpush

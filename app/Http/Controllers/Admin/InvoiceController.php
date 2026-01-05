@@ -4,104 +4,105 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
-use App\Models\WorkOrder;
+use App\Models\Customer;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller
 {
     /**
-     * Списък на фактурите с търсене
+     * Списък с фактури
      */
     public function index(Request $request)
     {
-        $query = Invoice::with('customer');
+        // Основна заявка
+        $query = Invoice::query()
+            ->with('customer')
+            ->whereNull('deleted_at');
 
-        if ($request->filled('q')) {
-            $q = $request->q;
+        /**
+         * =========================
+         * БЪРЗО ТЪРСЕНЕ
+         * =========================
+         * Търси по:
+         * - номер на фактура
+         * - клиент (име, телефон, имейл)
+         */
+        if ($request->filled('search')) {
+            $search = trim($request->search);
 
-            $query->where(function ($sub) use ($q) {
-                $sub->where('invoice_number', 'like', $q . '%')
-                    ->orWhere('status', 'like', $q . '%')
-                    ->orWhere('payment_status', 'like', $q . '%')
-                    ->orWhere('grand_total', 'like', $q . '%')
-                    ->orWhereDate('invoice_date', 'like', $q . '%')
-                    ->orWhereHas('customer', function ($c) use ($q) {
-                        $c->where('name', 'like', $q . '%')
-                          ->orWhere('eik', 'like', $q . '%');
-                    });
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhereHas('customer', function ($qc) use ($search) {
+                      $qc->where('name', 'like', "%{$search}%")
+                         ->orWhere('phone', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                  });
             });
         }
 
-        $invoices = $query->orderByDesc('invoice_date')->paginate(15);
-
-        if ($request->ajax()) {
-            return view('admin.invoices.index', compact('invoices'))->render();
+        /**
+         * =========================
+         * ФИЛТЪР ПО СТАТУС
+         * =========================
+         * paid | unpaid | cancelled
+         */
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
         }
+
+        /**
+         * =========================
+         * ФИЛТЪР ПО ПЛАЩАНЕ
+         * =========================
+         * cash | card | bank
+         */
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->payment_status);
+        }
+
+        /**
+         * =========================
+         * ПАГИНАЦИЯ
+         * =========================
+         * СЪЩАТА като Customers
+         */
+        $invoices = $query
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.invoices.index', compact('invoices'));
     }
 
     /**
-     * Показване на формата за създаване
+     * Създаване на фактура
      */
-    public function create(?WorkOrder $workOrder = null)
+    public function create()
     {
-        $workOrders = WorkOrder::doesntHave('invoice')->pluck('number', 'id');
+        $customers = Customer::orderBy('name')->get();
 
-        return view('admin.invoices.create', compact('workOrder', 'workOrders'));
+        return view('admin.invoices.create', compact('customers'));
     }
 
     /**
-     * Съхраняване на нова фактура
+     * Запис на фактура
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'work_order_id' => 'nullable|exists:work_orders,id',
-            'customer_id'   => 'required|exists:customers,id',
-            'invoice_date'  => 'required|date',
-            'due_date'      => 'nullable|date',
-            'payment_method'=> 'nullable|string|max:50',
+        $data = $request->validate([
+            'customer_id'     => 'required|exists:customers,id',
+            'invoice_number'  => 'required|string|max:50',
+            'status'          => 'required|string',
+            'payment_status'  => 'required|string',
+            'total'           => 'required|numeric|min:0',
+            'notes'           => 'nullable|string',
         ]);
 
-        $invoice = DB::transaction(function () use ($request) {
-            // Създаваме фактурата
-            $inv = Invoice::create([
-                'customer_id'   => $request->customer_id,
-                'vehicle_id'    => optional($request->work_order_id ? WorkOrder::find($request->work_order_id) : null)->vehicle_id,
-                'invoice_date'  => $request->invoice_date,
-                'due_date'      => $request->due_date ?? now()->addDays(14),
-                'payment_method'=> $request->payment_method ?? 'cash',
-                'discount_amount'=> 0,
-                // Други суми ще се преизчислят
-            ]);
+        Invoice::create($data);
 
-            // Ако има work_order_id — копираме редове
-            if ($request->filled('work_order_id')) {
-                $wo = WorkOrder::findOrFail($request->work_order_id);
-
-                foreach ($wo->items as $item) {
-                    $inv->items()->create([
-                        'description'    => $item->description,
-                        'quantity'       => $item->quantity,
-                        'unit_price'     => $item->unit_price,
-                        'vat_rate'       => 20,        // Ако искаш различен процент, настрой тук
-                        'vat_amount'     => 0,         // Ще се изчисли по-долу
-                        'total_price'    => 0,         // Ще се изчисли по-долу
-                    ]);
-                }
-            }
-
-            // Преизчисляване на суми (subtotal/tax/grand_total)
-            $inv->recalculateTotals();
-
-            return $inv;
-        });
-
-        return redirect()->route('admin.invoices.index')
-                         ->with('success', 'Фактурата е създадена успешно.');
+        return redirect()
+            ->route('admin.invoices.index')
+            ->with('success', 'Фактурата беше създадена успешно.');
     }
 
     /**
@@ -109,7 +110,7 @@ class InvoiceController extends Controller
      */
     public function show(Invoice $invoice)
     {
-        $invoice->load(['items', 'customer', 'payments', 'vehicle']);
+        $invoice->load('customer');
 
         return view('admin.invoices.show', compact('invoice'));
     }
@@ -119,9 +120,9 @@ class InvoiceController extends Controller
      */
     public function edit(Invoice $invoice)
     {
-        $invoice->load(['items', 'customer', 'vehicle']);
+        $customers = Customer::orderBy('name')->get();
 
-        return view('admin.invoices.edit', compact('invoice'));
+        return view('admin.invoices.edit', compact('invoice', 'customers'));
     }
 
     /**
@@ -129,35 +130,42 @@ class InvoiceController extends Controller
      */
     public function update(Request $request, Invoice $invoice)
     {
-        $validated = $request->validate([
-            'invoice_date'   => 'nullable|date',
-            'due_date'       => 'nullable|date',
-            'payment_method' => 'nullable|string|max:50',
-            'status'         => 'required|in:draft,sent,paid,overdue,voided,cancelled',
-            'payment_status' => 'nullable|string|max:50',
+        $data = $request->validate([
+            'customer_id'     => 'required|exists:customers,id',
+            'invoice_number'  => 'required|string|max:50',
+            'status'          => 'required|string',
+            'payment_status'  => 'required|string',
+            'total'           => 'required|numeric|min:0',
+            'notes'           => 'nullable|string',
         ]);
 
-        $invoice->update($validated);
+        $invoice->update($data);
 
-        // Ако трябва — преизчисляваме суми
-        $invoice->recalculateTotals();
-
-        return redirect()->route('admin.invoices.index')
-                         ->with('success', 'Фактурата е обновена успешно.');
+        return redirect()
+            ->route('admin.invoices.index')
+            ->with('success', 'Фактурата беше обновена успешно.');
     }
 
     /**
-     * Изтриване на фактура
+     * Изтриване (soft delete)
      */
     public function destroy(Invoice $invoice)
     {
-        // Първо изтриваме редовете
-        $invoice->items()->delete();
-
-        // После самата фактура
         $invoice->delete();
 
-        return redirect()->route('admin.invoices.index')
-                         ->with('success', 'Фактурата е изтрита успешно.');
+        return redirect()
+            ->route('admin.invoices.index')
+            ->with('success', 'Фактурата беше деактивирана.');
+    }
+
+    /**
+     * =========================
+     * ЕКСПОРТ В PDF
+     * =========================
+     * Използва InvoicePdfController
+     */
+    public function pdf(Invoice $invoice)
+    {
+        return app(InvoicePdfController::class)->show($invoice);
     }
 }
