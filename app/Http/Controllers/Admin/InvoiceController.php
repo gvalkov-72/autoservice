@@ -9,70 +9,74 @@ use Illuminate\Http\Request;
 
 class InvoiceController extends Controller
 {
-    /**
-     * Списък с фактури
-     */
-    public function index(Request $request)
-    {
-        // Основна заявка
-        $query = Invoice::query()
-            ->with('customer')
-            ->whereNull('deleted_at');
 
-        /**
-         * =========================
-         * БЪРЗО ТЪРСЕНЕ
-         * =========================
-         * Търси по:
-         * - номер на фактура
-         * - клиент (име, телефон, имейл)
-         */
-        if ($request->filled('search')) {
-            $search = trim($request->search);
+/**
+ * Списък с фактури
+ */
+public function index(Request $request)
+{
+    // Основна заявка
+    $query = Invoice::query()
+        ->with('customer')
+        ->whereNull('deleted_at');
 
-            $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function ($qc) use ($search) {
-                      $qc->where('name', 'like', "%{$search}%")
-                         ->orWhere('phone', 'like', "%{$search}%")
-                         ->orWhere('email', 'like', "%{$search}%");
-                  });
+    // ТЪРСЕНЕ (започва с)
+    if ($request->filled('search')) {
+        $search = trim($request->search);
+
+        $query->where(function ($q) use ($search) {
+            $q->where('invoice_number', 'like', "{$search}%")
+              ->orWhereHas('customer', function ($qc) use ($search) {
+                  $qc->where('name', 'like', "{$search}%")
+                     ->orWhere('phone', 'like', "{$search}%")
+                     ->orWhere('email', 'like', "{$search}%");
+              });
+        });
+    }
+
+    // ФИЛТЪР ПО АКТИВНОСТ (is_active) - ФИКСИРАНО!
+    if ($request->filled('is_active_filter')) {
+        if ($request->is_active_filter == 'active') {
+            $query->whereNotIn('status', ['voided', 'cancelled']);
+        } elseif ($request->is_active_filter == 'inactive') {
+            $query->whereIn('status', ['voided', 'cancelled']);
+        }
+    }
+
+    // ФИЛТЪР ПО ПЛАЩАНЕ (payment_status) - ФИКСИРАНО!
+    if ($request->filled('payment_filter')) {
+        if ($request->payment_filter == 'paid') {
+            // Платени: само 'paid'
+            $query->where('payment_status', 'paid');
+        } elseif ($request->payment_filter == 'unpaid') {
+            // Неплатени: всичко РАЗЛИЧНО от 'paid'
+            $query->where(function($q) {
+                $q->where('payment_status', '!=', 'paid')
+                  ->orWhereNull('payment_status');
             });
         }
-
-        /**
-         * =========================
-         * ФИЛТЪР ПО СТАТУС
-         * =========================
-         * paid | unpaid | cancelled
-         */
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        /**
-         * =========================
-         * ФИЛТЪР ПО ПЛАЩАНЕ
-         * =========================
-         * cash | card | bank
-         */
-        if ($request->filled('payment_status')) {
-            $query->where('payment_status', $request->payment_status);
-        }
-
-        /**
-         * =========================
-         * ПАГИНАЦИЯ
-         * =========================
-         * СЪЩАТА като Customers
-         */
-        $invoices = $query
-            ->orderByDesc('created_at')
-            ->paginate(20)
-            ->withQueryString();
-
-        return view('admin.invoices.index', compact('invoices'));
     }
+
+    // Стари филтри за съвместимост
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+
+    if ($request->filled('payment_status')) {
+        $query->where('payment_status', $request->payment_status);
+    }
+
+    $invoices = $query
+        ->orderByDesc('created_at')
+        ->paginate(20);
+
+    // AJAX заявка
+    if ($request->ajax() || $request->has('ajax')) {
+        return view('admin.invoices.partials.table', compact('invoices'));
+    }
+
+    return view('admin.invoices.index', compact('invoices'));
+}
 
     /**
      * Създаване на фактура
