@@ -11,14 +11,16 @@ class Payment extends Model
 
     protected $fillable = [
         'invoice_id',
+        'payment_method_id',
+        'bank_id',
         'amount',
-        'payment_method',
-        'payment_date',
-        'notes',
+        'paid_at',
+        'reference',
+        'created_by',
     ];
 
     protected $casts = [
-        'payment_date' => 'date',
+        'paid_at' => 'date',
         'amount' => 'decimal:2',
     ];
 
@@ -31,5 +33,20 @@ class Payment extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function paymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class);
+    }
+
+    public function bank()
+    {
+        return $this->belongsTo(Bank::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

@@ -10,13 +10,29 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
+
+            $table->foreignId('invoice_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->foreignId('payment_method_id')
+                ->constrained('payment_methods');
+
+            $table->foreignId('bank_id')
+                ->nullable()
+                ->constrained('banks');
+
             $table->decimal('amount', 12, 2);
-            $table->enum('method', ['cash','card','bank']);
+
             $table->date('paid_at');
-            $table->string('reference')->nullable(); // касов бон / ПОС номер
-            $table->foreignId('created_by')->constrained('users');
+
+            $table->string('reference')->nullable();
+
+            $table->foreignId('created_by')
+                ->constrained('users');
+
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
