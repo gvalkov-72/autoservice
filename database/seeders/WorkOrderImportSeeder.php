@@ -3,62 +3,88 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use App\Models\Invoice;
 use App\Models\WorkOrder;
-use App\Models\WorkOrderItem;
+use Carbon\Carbon;
 
 class WorkOrderImportSeeder extends Seeder
 {
-    /**
-     * Създава work_orders от съществуващи invoices
-     * и копира invoice_items -> work_order_items
-     */
     public function run(): void
     {
-        DB::transaction(function () {
+        $file = base_path('old-database/PO.txt');
 
-            $this->command->info('Започва импорт на сервизни поръчки от фактури...');
+        if (!file_exists($file)) {
+            $this->command->error("❌ Файлът не съществува: PO.txt");
+            return;
+        }
 
-            $invoices = Invoice::with(['items'])
-                ->whereNull('work_order_id')
-                ->get();
+        $lines = file($file, FILE_IGNORE_NEW_LINES);
 
-            foreach ($invoices as $invoice) {
+        $count = 0;
 
-                // 1. Създаваме сервизна поръчка
-                $workOrder = WorkOrder::create([
-                    'customer_id' => $invoice->customer_id,
-                    'vehicle_id'  => $invoice->vehicle_id,
-                    'user_id'     => $invoice->user_id ?? 1, // fallback към админ
-                    'status'      => 'completed',
-                    'notes'       => 'Автоматично създадена от фактура #' . $invoice->id,
-                ]);
+        foreach ($lines as $line) {
 
-                // 2. Копираме редовете от фактурата като ремонти
-                foreach ($invoice->items as $item) {
-
-                    WorkOrderItem::create([
-                        'work_order_id' => $workOrder->id,
-                        'line_number'   => $item->line_number,
-                        'description'   => $item->description,
-                        'quantity'      => $item->quantity,
-                        'unit_price'    => $item->unit_price,
-                        'total_price'   => $item->total_price,
-                    ]);
-                }
-
-                // 3. Връзваме фактурата към поръчката
-                $invoice->update([
-                    'work_order_id' => $workOrder->id,
-                ]);
-
-                $this->command->info(
-                    "✔ Фактура #{$invoice->id} → WorkOrder #{$workOrder->id}"
-                );
+            // прескачаме separator линии
+            if (str_starts_with(trim($line), '---')) {
+                continue;
             }
 
-            $this->command->info('✔ Импортът на сервизни поръчки приключи успешно.');
-        });
+            // редовете с данни започват с |
+            if (!str_starts_with(trim($line), '|')) {
+                continue;
+            }
+
+            // махаме първия и последния |
+            $columns = array_map('trim', explode('|', trim($line, '|')));
+
+            // header ред
+            if ($columns[0] === 'Поръчка') {
+                continue;
+            }
+
+            /*
+             * Колони:
+             * 0 => Поръчка
+             * 1 => Клиент
+             * 2 => PODate
+             * 3 => Author
+             * 4 => Забележ
+             * 5 => Шаси
+             * 6 => Телефон
+             * 7 => Автомобил
+             * 8 => ДК No
+             * 9 => Код на монтьора
+             * 10 => Изминати км
+             * 11 => serviceamt
+             */
+
+            $orderDate = null;
+            if (!empty($columns[2])) {
+                $cleanDate = str_replace('?.', '', $columns[2]);
+                try {
+                    $orderDate = Carbon::createFromFormat('d.m.Y', trim($cleanDate));
+                } catch (\Exception $e) {
+                    $orderDate = null;
+                }
+            }
+
+            WorkOrder::create([
+                'old_id'         => (int)$columns[0],
+                'client_name'    => $columns[1] ?: null,
+                'order_date'     => $orderDate,
+                'created_by'     => $columns[3] ?: null,
+                'note'           => $columns[4] ?: null,
+                'chassis_number' => $columns[5] ?: null,
+                'phone'          => $columns[6] ?: null,
+                'vehicle'        => $columns[7] ?: null,
+                'plate_number'   => $columns[8] ?: null,
+                'mechanic_code'  => is_numeric($columns[9]) ? (int)$columns[9] : null,
+                'mileage'        => is_numeric($columns[10]) ? (int)$columns[10] : null,
+                'service_amount' => is_numeric($columns[11]) ? (float)$columns[11] : 0,
+            ]);
+
+            $count++;
+        }
+
+        $this->command->info("✅ IMPORT FINISHED | Общо: {$count}");
     }
 }

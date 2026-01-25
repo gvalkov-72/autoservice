@@ -3,186 +3,99 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\InvoiceItem;
-use App\Models\Invoice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Carbon\Carbon;
 
 class InvoiceItemImportSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $this->command->info('========================================');
-        $this->command->info('🚀 СТАРТИРАНЕ НА ИМПОРТ НА АРТИКУЛИ ОТ TXT ФАЙЛ');
-        $this->command->info('========================================');
+        $file = base_path('old-database/Item.txt');
 
-        // КОРИГИРАН ПЪТ - същият като в InvoiceImportSeeder
-        $filePath = base_path('old-database/invoice_items.txt');
-
-        if (!file_exists($filePath)) {
-            $this->command->error('❌ ФАЙЛЪТ НЕ Е НАМЕРЕН: invoice_items.txt');
-            $this->command->info('💡 Очакван път: ' . $filePath);
+        if (!File::exists($file)) {
+            $this->command->error('❌ Файлът Item.txt не е намерен');
             return;
         }
 
-        $this->command->info('📁 Прочитане на файл: ' . $filePath);
+        $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-        // Изтриване на съществуващи данни
-        $this->command->info('🗑️  Изтриване на стари записи...');
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        DB::table('invoice_items')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        $total = 0;
+        $insert = [];
 
-        // Четем целия файл
-        $content = file_get_contents($filePath);
-        $lines = explode("\n", $content);
+        $this->command->info(str_repeat('=', 40));
+        $this->command->info('🚀 IMPORT: INVOICE ITEMS (Access → Laravel)');
+        $this->command->info(str_repeat('=', 40));
 
-        $totalLines = count($lines);
-        $this->command->info("📊 Общо редове във файла: {$totalLines}");
+        foreach ($lines as $line) {
 
-        $importedCount = 0;
-        $skippedCount = 0;
-
-        $this->command->info('🔍 Търсене на редове с данни...');
-
-        // Търсим мястото, където започват данните (както в InvoiceImportSeeder)
-        $startIndex = -1;
-        for ($i = 0; $i < min(50, $totalLines); $i++) {
-            $line = trim($lines[$i]);
-
-            // Търсим линия, която започва с "|         1 |" (първи запис)
-            if (preg_match('/^\|\s+\d+\s+\|/', $line)) {
-                $startIndex = $i;
-                $this->command->info("✅ Данните започват на ред: " . ($i + 1));
-                break;
-            }
-        }
-
-        if ($startIndex === -1) {
-            $this->command->error('❌ Не са намерени данни във файла!');
-            return;
-        }
-
-        $progressBar = $this->command->getOutput()->createProgressBar($totalLines - $startIndex);
-        $progressBar->start();
-
-        // Обработваме редовете от startIndex нататък
-        for ($i = $startIndex; $i < $totalLines; $i++) {
-            $line = trim($lines[$i]);
-
-            if (empty($line)) {
-                $progressBar->advance();
+            // пропускаме header / separator линии
+            if (
+                str_contains($line, 'Invoice-ID') ||
+                str_starts_with(trim($line), '----')
+            ) {
                 continue;
             }
 
-            // Пропускаме разделителни линии (съставени от -, =, _)
-            if (preg_match('/^[-=|_]+$/', $line)) {
-                $progressBar->advance();
+            // махаме началното и крайното |
+            $line = trim($line, "|\t ");
+
+            $cols = array_map('trim', explode('|', $line));
+
+            if (count($cols) < 8) {
                 continue;
             }
 
-            $progressBar->advance();
+            [
+                $invoiceId,
+                $rowNumber,
+                $itemCode,
+                $itemName,
+                $itemMeasure,
+                $qty,
+                $priceEach,
+                $rowTotal
+            ] = $cols;
 
-            try {
-                // Извличане на данните за артикул
-                $itemData = $this->parseInvoiceItemLine($line);
+            // числови стойности (замяна , → .)
+            $qty = (float) str_replace(',', '.', $qty);
+            $priceEach = (float) str_replace(',', '.', $priceEach);
+            $rowTotal = (float) str_replace(',', '.', $rowTotal);
 
-                if ($itemData === null) {
-                    $skippedCount++;
-                    continue;
-                }
+            // fallback ако total липсва
+            if ($rowTotal == 0 && $qty > 0 && $priceEach > 0) {
+                $rowTotal = $qty * $priceEach;
+            }
 
-                // Проверка дали фактурата съществува
-                if (!Invoice::where('id', $itemData['invoice_id'])->exists()) {
-                    $skippedCount++;
-                    continue;
-                }
+            $insert[] = [
+                'invoice_old_id' => (int) $invoiceId,
+                'row_number'     => (int) $rowNumber,
+                'item_code'      => $itemCode ?: null,
+                'item_name'      => $itemName,
+                'item_measure'   => $itemMeasure ?: null,
+                'quantity'       => $qty,
+                'price_each'     => $priceEach,
+                'row_total'      => $rowTotal,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ];
 
-                // Създаване на записа
-                InvoiceItem::create($itemData);
-                $importedCount++;
+            $total++;
 
-            } catch (\Exception $e) {
-                $skippedCount++;
+            // batch insert (по 500)
+            if (count($insert) === 500) {
+                DB::table('invoice_items')->insert($insert);
+                $insert = [];
+                $this->command->info("➕ Импортирани редове: {$total}");
             }
         }
 
-        $progressBar->finish();
-        $this->command->newLine(2);
-
-        // Резюме
-        $this->command->info('✅ ИМПОРТЪТ Е ЗАВЪРШЕН');
-        $this->command->info('========================================');
-        $this->command->info("📦 Импортирани артикули: {$importedCount}");
-        $this->command->info("⏭️  Пропуснати артикули: {$skippedCount}");
-        $this->command->info('========================================');
-    }
-
-    /**
-     * Парсва ред за артикул от фактура
-     */
-    private function parseInvoiceItemLine(string $line): ?array
-    {
-        // Премахваме началния и крайния |
-        $line = trim($line, '|');
-
-        // Разделяме по |
-        $columns = explode('|', $line);
-
-        // Тримваме всяка колона
-        $columns = array_map('trim', $columns);
-
-        // Брой на колоните според твоя пример трябва да са 8
-        if (count($columns) < 8) {
-            return null;
+        if (!empty($insert)) {
+            DB::table('invoice_items')->insert($insert);
         }
 
-        // Мапиране на колоните според твоя пример:
-        // | Invoice-ID | Number | Item-Code | Item-Name | Item | Item | Item-Price-Ea | Item-total |
-        //     0            1          2           3         4      5         6              7
-        // 4-та колона: единица мярка (ЛИТ)
-        // 5-та колона: количество
-
-        $data = [
-            'invoice_id' => $this->cleanNumber($columns[0]),
-            'line_number' => $this->cleanNumber($columns[1]),
-            'product_code' => empty($columns[2]) ? null : $columns[2],
-            'description' => $columns[3],
-            'unit_of_measure' => $columns[4],  // единица мярка
-            'quantity' => $this->parseDecimal($columns[5]),  // количество
-            'unit_price' => $this->parseDecimal($columns[6]),
-            'total_price' => $this->parseDecimal($columns[7]),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ];
-
-        // Проверка за валидност
-        if (empty($data['invoice_id']) || empty($data['description'])) {
-            return null;
-        }
-
-        return $data;
-    }
-
-    /**
-     * Почиства число от празни пространства
-     */
-    private function cleanNumber(string $value): ?int
-    {
-        $value = trim($value);
-        return $value === '' ? null : (int)$value;
-    }
-
-    /**
-     * Парсва десетично число (заменя запетая с точка)
-     */
-    private function parseDecimal(string $value): float
-    {
-        $value = trim($value);
-        $value = str_replace(',', '.', $value);
-        return is_numeric($value) ? (float)$value : 0.0;
+        $this->command->info(str_repeat('=', 40));
+        $this->command->info("✅ IMPORT FINISHED | Общо редове: {$total}");
+        $this->command->info(str_repeat('=', 40));
     }
 }

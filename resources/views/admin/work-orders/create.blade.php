@@ -4,7 +4,7 @@
 
 @section('content_header')
     <div class="d-flex justify-content-between align-items-center">
-        <h1 class="text-primary"><i class="fas fa-file-invoice mr-2"></i>Нова поръчка</h1>
+        <h1><i class="fas fa-plus-circle text-primary mr-2"></i>Нова поръчка</h1>
         <a href="{{ route('admin.work-orders.index') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left mr-1"></i> Назад
         </a>
@@ -12,40 +12,268 @@
 @stop
 
 @section('content')
-    <div class="card border-primary">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0"><i class="fas fa-search mr-2"></i>Бързо търсене</h4>
-        </div>
-        <div class="card-body bg-light">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="form-group">
-                        <label class="font-weight-bold">Бързо търсене на клиент или автомобил:</label>
-                        <div class="input-group input-group-sm">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text bg-white">
-                                    <i class="fas fa-search text-primary"></i>
-                                </span>
-                            </div>
-                            <input type="text" id="globalSearch" class="form-control form-control-sm" 
-                                   placeholder="Въведете име на клиент, телефон, имейл или регистрационен номер...">
-                            <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button" id="clearSearch">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div id="searchResults" class="list-group mt-2" style="display: none; max-height: 300px; overflow-y: auto;">
-                            <!-- Резултатите ще се появят тук -->
-                        </div>
+@php
+    $rate = 1.95583;
+    $showBgn = now()->lte('2026-01-31');
+    
+    function toBgn($amountEur, $rate = 1.95583, $decimals = 2) {
+        return number_format($amountEur * $rate, $decimals, ',', ' ');
+    }
+    
+    function formatEur($amountEur, $decimals = 2) {
+        return number_format($amountEur, $decimals, ',', ' ');
+    }
+@endphp
+
+<form action="{{ route('admin.work-orders.store') }}" method="POST" id="work-order-form">
+    @csrf
+    
+    <div class="row">
+        <!-- Основна информация -->
+        <div class="col-lg-8">
+            <div class="card card-outline card-primary">
+                <div class="card-header border-bottom-0">
+                    <h3 class="card-title">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Основна информация
+                    </h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-minus"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <div class="alert alert-info w-100 mb-0 py-2">
-                        <small class="d-block">
+                <div class="card-body pt-0">
+                    <div class="row">
+                        <!-- Клиент -->
+                        <div class="col-md-6">
+                            <div class="form-group" style="position: relative;">
+                                <label for="client_search" class="font-weight-bold text-primary">
+                                    <i class="fas fa-user mr-1"></i>Клиент *
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control form-control-lg border-primary" 
+                                           id="client_search" name="client_search" 
+                                           placeholder="Име или телефон..." autocomplete="off">
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-outline-primary" id="clear-client">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="customer_id" name="customer_id">
+                                <div class="input-group mt-2">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text bg-light">
+                                            <i class="fas fa-user-check"></i>
+                                        </span>
+                                    </div>
+                                    <input type="text" class="form-control border-success bg-light" 
+                                           id="client_name" name="client_name" 
+                                           value="{{ old('client_name') }}" required readonly>
+                                </div>
+                                <div id="client-results" style="display: none; position: absolute; z-index: 1000; width: 100%; max-height: 250px; overflow-y: auto; background: white; border: 1px solid #007bff; border-radius: 0.375rem; box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);"></div>
+                                <small class="text-muted mt-1">
+                                    <i class="fas fa-info-circle"></i> Въведете поне 2 символа за търсене
+                                </small>
+                                @error('client_name')
+                                    <small class="text-danger">{{ $message }}</small>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <!-- Контакти -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="phone" class="font-weight-bold">
+                                    <i class="fas fa-phone mr-1"></i>Телефон
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text bg-light">
+                                            <i class="fas fa-phone-alt"></i>
+                                        </span>
+                                    </div>
+                                    <input type="text" class="form-control border-info bg-light" 
+                                           id="phone" name="phone" value="{{ old('phone') }}" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <!-- Автомобил -->
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="vehicle" class="font-weight-bold">
+                                    <i class="fas fa-car mr-1"></i>Автомобил
+                                </label>
+                                <input type="text" class="form-control form-control-sm" 
+                                       id="vehicle" name="vehicle" value="{{ old('vehicle') }}"
+                                       placeholder="Марка и модел...">
+                            </div>
+                        </div>
+
+                        <!-- Рег. номер -->
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="plate_number" class="font-weight-bold">
+                                    <i class="fas fa-tag mr-1"></i>Рег. номер
+                                </label>
+                                <input type="text" class="form-control form-control-sm text-uppercase" 
+                                       id="plate_number" name="plate_number" 
+                                       value="{{ old('plate_number') }}" placeholder="AB 1234 CD">
+                            </div>
+                        </div>
+
+                        <!-- VIN -->
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="chassis_number" class="font-weight-bold">
+                                    <i class="fas fa-barcode mr-1"></i>VIN номер
+                                </label>
+                                <input type="text" class="form-control form-control-sm" 
+                                       id="chassis_number" name="chassis_number" 
+                                       value="{{ old('chassis_number') }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <!-- Дата -->
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="order_date" class="font-weight-bold">
+                                    <i class="fas fa-calendar-alt mr-1"></i>Дата
+                                </label>
+                                <input type="date" class="form-control form-control-sm" 
+                                       id="order_date" name="order_date" 
+                                       value="{{ old('order_date', date('Y-m-d')) }}">
+                            </div>
+                        </div>
+
+                        <!-- Пробег -->
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="mileage" class="font-weight-bold">
+                                    <i class="fas fa-tachometer-alt mr-1"></i>Пробег (км)
+                                </label>
+                                <input type="number" class="form-control form-control-sm" 
+                                       id="mileage" name="mileage" value="{{ old('mileage') }}" min="0">
+                            </div>
+                        </div>
+
+                        <!-- Механик -->
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="mechanic_code" class="font-weight-bold">
+                                    <i class="fas fa-tools mr-1"></i>Механик
+                                </label>
+                                <input type="number" class="form-control form-control-sm" 
+                                       id="mechanic_code" name="mechanic_code" 
+                                       value="{{ old('mechanic_code') }}">
+                            </div>
+                        </div>
+
+                        <!-- Създадена от -->
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="created_by" class="font-weight-bold">
+                                    <i class="fas fa-user-edit mr-1"></i>Създадена от
+                                </label>
+                                <input type="text" class="form-control form-control-sm" 
+                                       id="created_by" name="created_by" 
+                                       value="{{ old('created_by', auth()->user()->name) }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Бележки -->
+                    <div class="form-group mt-3">
+                        <label for="note" class="font-weight-bold">
+                            <i class="fas fa-sticky-note mr-1"></i>Бележки
+                        </label>
+                        <textarea class="form-control form-control-sm" 
+                                  id="note" name="note" rows="2" 
+                                  placeholder="Допълнителни бележки...">{{ old('note') }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Финансово обобщение -->
+        <div class="col-lg-4">
+            <div class="card card-outline card-success">
+                <div class="card-header border-bottom-0">
+                    <h3 class="card-title">
+                        <i class="fas fa-calculator mr-1"></i>
+                        Финансово обобщение
+                    </h3>
+                </div>
+                <div class="card-body pt-0">
+                    <!-- Стойност на труда -->
+                    <div class="form-group">
+                        <label for="service_amount" class="font-weight-bold">
+                            <i class="fas fa-hard-hat mr-1"></i>Стойност на труда
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" step="0.01" min="0" 
+                                   class="form-control form-control-lg border-success text-right" 
+                                   id="service_amount" name="service_amount" 
+                                   value="{{ old('service_amount', 0) }}">
+                            <div class="input-group-append">
+                                <span class="input-group-text bg-success text-white">€</span>
+                            </div>
+                        </div>
+                        @if($showBgn)
+                        <small class="text-muted ml-2">
+                            ≈ <span id="service_amount_bgn">0,00</span> лв
+                        </small>
+                        @endif
+                    </div>
+
+                    <hr class="my-3">
+
+                    <!-- Обобщение -->
+                    <div class="summary-box p-3 bg-light rounded">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Артикули:</span>
+                            <strong>
+                                <span id="items_total">0,00</span> €
+                                @if($showBgn)
+                                <br><small class="text-muted" id="items_total_bgn">0,00 лв</small>
+                                @endif
+                            </strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Труд:</span>
+                            <strong>
+                                <span id="service_display">0,00</span> €
+                                @if($showBgn)
+                                <br><small class="text-muted" id="service_display_bgn">0,00 лв</small>
+                                @endif
+                            </strong>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between">
+                            <h5 class="mb-0">ОБЩО:</h5>
+                            <h4 class="mb-0 text-success">
+                                <span id="grand_total">0,00</span> €
+                                @if($showBgn)
+                                <br><small class="text-muted" id="grand_total_bgn">0,00 лв</small>
+                                @endif
+                            </h4>
+                        </div>
+                    </div>
+
+                    <!-- Информация -->
+                    <div class="alert alert-info mt-3 py-2" role="alert">
+                        <small>
                             <i class="fas fa-info-circle mr-1"></i>
-                            Търсете по: <strong>име</strong>, <strong>телефон</strong>, 
-                            <strong>имейл</strong> или <strong>регистрационен номер</strong>.
+                            Сумите се съхраняват в <strong>евро</strong> в базата данни.
+                            @if($showBgn)
+                            <br>Показването в лева е активна до 31.01.2026 г.
+                            @endif
                         </small>
                     </div>
                 </div>
@@ -53,927 +281,537 @@
         </div>
     </div>
 
-    <div class="card border-success mt-3">
-        <div class="card-header bg-success text-white">
-            <h4 class="mb-0"><i class="fas fa-user-circle mr-2"></i>Информация за клиент и автомобил</h4>
-        </div>
-        <div class="card-body">
-            <form action="{{ route('admin.work-orders.store') }}" method="POST" id="orderForm">
-                @csrf
-                
-                {{-- Основна информация --}}
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="font-weight-bold text-primary">Клиент <span class="text-danger">*</span></label>
-                            <select name="customer_id" id="customer_id" class="form-control form-control-sm select2" 
-                                    data-placeholder="Изберете клиент" required>
-                                <option value=""></option>
-                                @foreach($customers as $id => $name)
-                                    <option value="{{ $id }}">{{ $name }}</option>
-                                @endforeach
-                            </select>
-                            <div id="customerInfo" class="mt-1 p-2 bg-light rounded" style="display: none;">
-                                <small class="text-muted">
-                                    <i class="fas fa-user text-primary mr-1"></i>
-                                    <span id="customerName"></span><br>
-                                    <i class="fas fa-phone text-primary mr-1"></i>
-                                    <span id="customerPhone"></span><br>
-                                    <i class="fas fa-envelope text-primary mr-1"></i>
-                                    <span id="customerEmail"></span>
-                                </small>
-                            </div>
-                        </div>
+    <!-- Артикули и услуги -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card card-outline card-primary">
+                <div class="card-header">
+                    <h3 class="card-title d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fas fa-boxes mr-1"></i>
+                            Артикули и услуги
+                        </span>
+                        <button type="button" class="btn btn-success btn-sm" id="add-item">
+                            <i class="fas fa-plus-circle mr-1"></i> Добави артикул
+                        </button>
+                    </h3>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="items-table">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th style="width: 40px">#</th>
+                                    <th style="width: 100px">Код</th>
+                                    <th>Описание</th>
+                                    <th style="width: 80px">Мярка</th>
+                                    <th style="width: 100px">Количество</th>
+                                    <th style="width: 120px">Ед. цена</th>
+                                    <th style="width: 120px">Сума</th>
+                                    <th style="width: 50px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-container">
+                                <!-- Динамично ще се добавят редове тук -->
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="font-weight-bold text-primary">Автомобил <span class="text-danger">*</span></label>
-                            <select name="vehicle_id" id="vehicle_id" class="form-control form-control-sm select2" required
-                                    data-placeholder="Изберете автомобил"
-                                    data-mileages="{{ $vehiclesForMileage->pluck('mileage', 'id')->toJson() }}">
-                                <option value=""></option>
-                            </select>
-                            <div id="vehicleInfo" class="mt-1 p-2 bg-light rounded" style="display: none;">
-                                <small class="text-muted">
-                                    <i class="fas fa-car text-primary mr-1"></i>
-                                    <span id="vehicleMakeModel"></span><br>
-                                    <i class="fas fa-hashtag text-primary mr-1"></i>
-                                    Рег. номер: <span id="vehiclePlate"></span><br>
-                                    <i class="fas fa-calendar text-primary mr-1"></i>
-                                    Година: <span id="vehicleYear"></span><br>
-                                    <i class="fas fa-gas-pump text-primary mr-1"></i>
-                                    Двигател: <span id="vehicleEngine"></span>
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="font-weight-bold text-primary">Механик</label>
-                            <select name="assigned_to" class="form-control form-control-sm select2">
-                                <option value=""></option>
-                                @foreach($mechanics as $id => $name)
-                                    <option value="{{ $id }}">{{ $name }}</option>
-                                @endforeach
-                            </select>
-                            <small class="form-text text-muted">Незадължително</small>
-                        </div>
+                    
+                    <div class="text-center text-muted py-4" id="no-items-message">
+                        <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                        Все още няма добавени артикули.<br>
+                        <small>Натиснете "Добави артикул", за да започнете.</small>
                     </div>
                 </div>
-
-                {{-- Детайли за поръчката --}}
-                <div class="card border-warning mt-3">
-                    <div class="card-header bg-warning">
-                        <h5 class="mb-0 text-dark"><i class="fas fa-clipboard-list mr-2"></i>Детайли на поръчката</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label class="font-weight-bold text-dark">Статус <span class="text-danger">*</span></label>
-                                    <select name="status" class="form-control form-control-sm" required>
-                                        <option value="draft">📝 Чернова</option>
-                                        <option value="open" selected>🔓 Отворена</option>
-                                        <option value="in_progress">⚙️ В прогрес</option>
-                                        <option value="completed">✅ Завършена</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label class="font-weight-bold text-dark">Дата приемане</label>
-                                    <div class="input-group input-group-sm">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text bg-light">
-                                                <i class="fas fa-calendar-alt text-warning"></i>
-                                            </span>
-                                        </div>
-                                        <input type="datetime-local" name="received_at" class="form-control" 
-                                               value="{{ now()->format('Y-m-d\TH:i') }}">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label class="font-weight-bold text-dark">Пробег (km)</label>
-                                    <div class="input-group input-group-sm">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text bg-light">
-                                                <i class="fas fa-tachometer-alt text-warning"></i>
-                                            </span>
-                                        </div>
-                                        <input type="number" name="km_on_receive" class="form-control" 
-                                               min="0" placeholder="0" id="vehicle_mileage">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label class="font-weight-bold text-dark">Очаквана дата</label>
-                                    <div class="input-group input-group-sm">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text bg-light">
-                                                <i class="fas fa-calendar-check text-warning"></i>
-                                            </span>
-                                        </div>
-                                        <input type="date" name="estimated_completion" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group mt-2">
-                            <label class="font-weight-bold text-dark">
-                                <i class="fas fa-sticky-note mr-1"></i>Бележки
-                            </label>
-                            <textarea name="notes" class="form-control form-control-sm" rows="2" 
-                                      placeholder="Допълнителни бележки за поръчката..."></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Динамична таблица с позиции --}}
-                <div class="card border-info mt-3">
-                    <div class="card-header bg-info text-white">
-                        <h4 class="mb-0">
-                            <i class="fas fa-list-alt mr-2"></i>Позиции в поръчката
-                            <span class="badge badge-light ml-2" id="itemsCount">0 позиции</span>
-                        </h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover table-bordered" id="itemsTable">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th width="5%">№</th>
-                                        <th width="25%">Продукт/Услуга</th>
-                                        <th width="25%">Описание</th>
-                                        <th width="10%">Кол-во</th>
-                                        <th width="10%">Цена без ДДС</th>
-                                        <th width="10%">ДДС %</th>
-                                        <th width="10%">Общо</th>
-                                        <th width="5%"></th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                                <tfoot class="bg-light">
-                                    <tr>
-                                        <td colspan="7" class="text-right font-weight-bold">Общо позиции:</td>
-                                        <td class="font-weight-bold" id="itemsCountFooter">0</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                        <div class="d-flex flex-wrap gap-2 mt-2">
-                            <button type="button" id="addProductRow" class="btn btn-success btn-sm">
-                                <i class="fas fa-box mr-1"></i> Добави продукт
-                            </button>
-                            <button type="button" id="addServiceRow" class="btn btn-primary btn-sm">
-                                <i class="fas fa-tools mr-1"></i> Добави услуга
-                            </button>
-                            <button type="button" id="addQuickService" class="btn btn-outline-info btn-sm">
-                                <i class="fas fa-bolt mr-1"></i> Бърза услуга
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Суми --}}
-                <div class="row mt-3">
-                    <div class="col-md-5 offset-md-7">
-                        <div class="card border-success">
-                            <div class="card-header bg-success text-white py-1">
-                                <h5 class="mb-0"><i class="fas fa-calculator mr-2"></i>Общо суми</h5>
-                            </div>
-                            <div class="card-body py-2">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tr>
-                                        <th class="text-right py-1">Общо без ДДС:</th>
-                                        <td class="text-right py-1">
-                                            <span class="font-weight-bold text-primary" id="totalWithoutVat">0.00</span> лв.
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th class="text-right py-1">ДДС:</th>
-                                        <td class="text-right py-1">
-                                            <span class="font-weight-bold text-warning" id="totalVat">0.00</span> лв.
-                                        </td>
-                                    </tr>
-                                    <tr class="border-top">
-                                        <th class="text-right py-1 font-weight-bold">Общо с ДДС:</th>
-                                        <td class="text-right py-1">
-                                            <span class="h5 font-weight-bold text-success" id="grandTotal">0.00</span> лв.
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Бутони за действие --}}
-                <div class="mt-3 d-flex justify-content-end gap-2">
-                    <button type="submit" class="btn btn-success btn-sm">
-                        <i class="fas fa-save mr-1"></i> Запази поръчка
-                    </button>
-                    <button type="submit" name="action" value="save_and_print" class="btn btn-primary btn-sm">
-                        <i class="fas fa-print mr-1"></i> Запази и отпечатай
-                    </button>
-                    <a href="{{ route('admin.work-orders.index') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-times mr-1"></i> Отказ
-                    </a>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
+
+    <!-- Бутони за действие -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card card-outline">
+                <div class="card-body text-center py-3">
+                    <button type="submit" class="btn btn-primary btn-lg px-5">
+                        <i class="fas fa-save mr-2"></i> Запази поръчката
+                    </button>
+                    <a href="{{ route('admin.work-orders.index') }}" class="btn btn-outline-secondary btn-lg px-5 ml-2">
+                        <i class="fas fa-times mr-2"></i> Отказ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Шаблон за ред с артикул -->
+<template id="item-template">
+    <tr class="item-row">
+        <td class="align-middle text-center item-index font-weight-bold">1</td>
+        <td class="align-middle">
+            <input type="text" class="form-control form-control-sm border-0 item-code" 
+                   name="items[INDEX][item_code]" placeholder="КОД">
+        </td>
+        <td class="align-middle">
+            <input type="text" class="form-control form-control-sm border-0 item-name" 
+                   name="items[INDEX][item_name]" placeholder="Въведете описание..." required>
+        </td>
+        <td class="align-middle">
+            <select class="form-control form-control-sm border-0 item-measure" name="items[INDEX][item_measure]">
+                <option value="бр.">бр.</option>
+                <option value="кг">кг</option>
+                <option value="л">л</option>
+                <option value="м">м</option>
+                <option value="ч">ч</option>
+                <option value="услуга">услуга</option>
+            </select>
+        </td>
+        <td class="align-middle">
+            <input type="number" step="0.01" min="0" value="1"
+                   class="form-control form-control-sm border-0 text-right item-quantity" 
+                   name="items[INDEX][quantity]">
+        </td>
+        <td class="align-middle">
+            <div class="input-group input-group-sm">
+                <input type="number" step="0.01" min="0" value="0"
+                       class="form-control border-0 text-right item-price" 
+                       name="items[INDEX][price_each]">
+                <div class="input-group-append">
+                    <span class="input-group-text bg-transparent">€</span>
+                </div>
+            </div>
+            @if($showBgn)
+            <small class="text-muted item-price-bgn">0,00 лв</small>
+            @endif
+        </td>
+        <td class="align-middle">
+            <div class="font-weight-bold item-total">0,00 €</div>
+            @if($showBgn)
+            <small class="text-muted item-total-bgn">0,00 лв</small>
+            @endif
+        </td>
+        <td class="align-middle text-center">
+            <button type="button" class="btn btn-danger btn-sm remove-item" title="Премахни">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </td>
+    </tr>
+</template>
 @stop
 
-@push('css')
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css">
-    <style>
-        /* По-малки Select2 контроли */
-        .select2-container--bootstrap .select2-selection {
-            border: 1px solid #ced4da;
-            border-radius: 0.25rem;
-            height: calc(1.5em + 0.5rem + 2px);
-            font-size: 0.875rem;
-            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-        }
-        
-        .select2-container--bootstrap .select2-selection--single .select2-selection__rendered {
-            line-height: calc(1.5em + 0.5rem);
-            padding-left: 0.375rem;
-        }
-        
-        .select2-container--bootstrap .select2-selection:focus {
-            border-color: #80bdff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        }
-        
-        .select2-container--bootstrap .select2-selection__arrow {
-            height: calc(1.5em + 0.5rem);
-        }
-        
-        /* По-малки форми */
-        .form-control, .form-control-sm {
-            font-size: 0.875rem;
-            padding: 0.25rem 0.5rem;
-            height: calc(1.5em + 0.5rem + 2px);
-        }
-        
-        .form-group label {
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-        
-        /* По-малки картони */
-        .card {
-            margin-bottom: 1rem;
-        }
-        
-        .card-header {
-            border-radius: 0.25rem 0.25rem 0 0 !important;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.95rem;
-        }
-        
-        .card-body {
-            padding: 0.75rem;
-        }
-        
-        /* По-малка таблица */
-        .table-sm {
-            font-size: 0.85rem;
-        }
-        
-        .table-sm th,
-        .table-sm td {
-            padding: 0.3rem;
-        }
-        
-        .table-hover tbody tr:hover {
-            background-color: rgba(0, 123, 255, 0.05);
-        }
-        
-        /* По-малки бутони */
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            line-height: 1.5;
-            border-radius: 0.2rem;
-        }
-        
-        /* По-малки инпут групи */
-        .input-group-sm > .form-control,
-        .input-group-sm > .input-group-prepend > .input-group-text,
-        .input-group-sm > .input-group-append > .input-group-text {
-            height: calc(1.5em + 0.5rem + 2px);
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
-        }
-        
-        .input-group-text {
-            background-color: #f8f9fa;
-            border: 1px solid #ced4da;
-            font-size: 0.875rem;
-        }
-        
-        /* По-малки badge */
-        .badge {
-            font-size: 0.7em;
-            padding: 0.25em 0.5em;
-        }
-        
-        /* Автодопълване резултати */
-        .list-group-item {
-            padding: 0.375rem 0.75rem;
-            font-size: 0.85rem;
-        }
-        
-        .list-group-item:hover {
-            background-color: #007bff !important;
-            color: white !important;
-            cursor: pointer;
-        }
-        
-        .list-group-item .customer-badge {
-            font-size: 0.7em;
-        }
-        
-        .search-highlight {
-            background-color: #fff3cd;
-            font-weight: bold;
-        }
-        
-        /* Информационни панели */
-        #customerInfo, #vehicleInfo {
-            border-left: 3px solid #007bff;
-            padding: 0.5rem;
-            font-size: 0.8rem;
-            margin-top: 0.25rem;
-        }
-        
-        /* Разстояния между редовете */
-        .row {
-            margin-bottom: 0.5rem;
-        }
-        
-        .form-group {
-            margin-bottom: 0.75rem;
-        }
-        
-        /* Стилове за различни типове редове */
-        .product-row {
-            background-color: rgba(40, 167, 69, 0.05);
-        }
-        
-        .service-row {
-            background-color: rgba(23, 162, 184, 0.05);
-        }
-        
-        .quick-service-row {
-            background-color: rgba(255, 193, 7, 0.05);
-        }
-        
-        /* AdminLTE подобрения */
-        .card.border-primary .card-header {
-            background: linear-gradient(45deg, #007bff, #6610f2);
-        }
-        
-        .card.border-success .card-header {
-            background: linear-gradient(45deg, #28a745, #20c997);
-        }
-        
-        .card.border-warning .card-header {
-            background: linear-gradient(45deg, #ffc107, #fd7e14);
-        }
-        
-        .card.border-info .card-header {
-            background: linear-gradient(45deg, #17a2b8, #20c997);
-        }
-        
-        /* По-малки иконки */
-        .fas, .fa {
-            font-size: 0.9em;
-        }
-    </style>
-@endpush
+@section('css')
+<style>
+    .card-header {
+        background: linear-gradient(120deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    .card-outline {
+        border-top: 3px solid #007bff;
+    }
+    .card-outline.card-success {
+        border-top-color: #28a745;
+    }
+    .summary-box {
+        border: 1px dashed #28a745;
+        background-color: #f8fff9 !important;
+    }
+    .item-row:hover {
+        background-color: #f8f9fa !important;
+    }
+    .item-row td {
+        padding: 8px !important;
+        vertical-align: middle !important;
+    }
+    .item-row input, .item-row select {
+        background-color: transparent !important;
+        border: 1px solid transparent !important;
+        transition: border 0.3s;
+    }
+    .item-row input:focus, .item-row select:focus {
+        border: 1px solid #80bdff !important;
+        background-color: white !important;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+    .item-quantity, .item-price {
+        text-align: right;
+    }
+    #no-items-message {
+        display: block;
+    }
+    #items-container:has(tr) ~ #no-items-message {
+        display: none;
+    }
+    
+    /* КРИТИЧНО: Оправени стилове за автокомплит */
+    #client-results {
+        display: none;
+        position: absolute;
+        z-index: 9999;
+        width: 100%;
+        max-height: 250px;
+        overflow-y: auto;
+        background: white;
+        border: 1px solid #007bff;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+        margin-top: 5px;
+    }
+    
+    .client-option {
+        padding: 10px 15px;
+        cursor: pointer;
+        border-bottom: 1px solid #dee2e6;
+        transition: all 0.2s;
+    }
+    
+    .client-option:last-child {
+        border-bottom: none;
+    }
+    
+    .client-option:hover {
+        background-color: #007bff !important;
+        color: white !important;
+    }
+    
+    .client-option:hover .client-phone {
+        color: #e9ecef !important;
+    }
+    
+    .client-name {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 2px;
+    }
+    
+    .client-phone {
+        color: #6c757d;
+        font-size: 0.85em;
+    }
+    
+    .form-control:read-only {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+    
+    label {
+        font-size: 0.9rem;
+        margin-bottom: 0.3rem;
+    }
+</style>
+@stop
 
-@push('js')
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/bg.js"></script>
-    <script>
-        $(function () {
-            // Инициализация на Select2
-            $('.select2').select2({
-                theme: 'bootstrap',
-                language: 'bg',
-                width: '100%',
-                allowClear: true
-            });
-
-            // АВТОМАТИЧНО ПОПЪЛВАНЕ НА ПРОБЕГА ПРИ ИЗБОР НА АВТОМОБИЛ
-            const vehicleSelect = document.getElementById('vehicle_id');
-            const mileageInput = document.getElementById('vehicle_mileage');
-            
-            if (vehicleSelect && mileageInput) {
-                // Вземаме данните за пробега от data attribute
-                const vehiclesData = JSON.parse(vehicleSelect.getAttribute('data-mileages') || '{}');
-                
-                // Слушател за промяна на избора на автомобил
-                $(vehicleSelect).on('change', function() {
-                    const vehicleId = this.value;
-                    if (vehicleId && vehiclesData[vehicleId]) {
-                        // Попълване на полето за пробег
-                        mileageInput.value = vehiclesData[vehicleId];
-                        
-                        // Тригер за валидация, ако е необходимо
-                        $(mileageInput).trigger('input');
-                    }
-                });
-            }
-
-            // Глобално търсене
-            let searchTimeout;
-            $('#globalSearch').on('input', function() {
-                clearTimeout(searchTimeout);
-                const query = $(this).val().trim();
-                
-                if (query.length < 2) {
-                    $('#searchResults').hide().empty();
-                    return;
-                }
-                
-                searchTimeout = setTimeout(function() {
-                    performGlobalSearch(query);
-                }, 300);
-            });
-
-            // Изчистване на търсенето
-            $('#clearSearch').click(function() {
-                $('#globalSearch').val('');
-                $('#searchResults').hide().empty();
-            });
-
-            // Затваряне на резултатите при клик извън тях
-            $(document).click(function(e) {
-                if (!$(e.target).closest('#globalSearch, #searchResults').length) {
-                    $('#searchResults').hide();
-                }
-            });
-
-            // Зареждане на автомобили при избор на клиент
-            $('#customer_id').change(function () {
-                const customerId = $(this).val();
-                loadCustomerVehicles(customerId);
-                
-                // Ако има избран клиент, покажи информацията му
-                if (customerId) {
-                    loadCustomerInfo(customerId);
-                } else {
-                    $('#customerInfo').hide();
-                }
-            });
-
-            // Зареждане на информация при избор на автомобил
-            $('#vehicle_id').change(function () {
-                const vehicleId = $(this).val();
-                if (vehicleId) {
-                    loadVehicleInfo(vehicleId);
-                } else {
-                    $('#vehicleInfo').hide();
-                }
-            });
+@section('js')
+<script>
+$(document).ready(function() {
+    const BGN_TO_EUR_RATE = {{ $rate }};
+    const SHOW_BGN = {{ $showBgn ? 'true' : 'false' }};
+    let itemCounter = 0;
+    let searchTimer = null;
+    
+    // Функция за конвертиране ОТ евро КЪМ левове
+    function toBgn(eur) {
+        return (eur * BGN_TO_EUR_RATE).toFixed(2).replace('.', ',');
+    }
+    
+    // Функция за форматиране на число
+    function formatNumber(num) {
+        return num.toFixed(2).replace('.', ',');
+    }
+    
+    // Функция за преизчисляване на общите суми
+    function updateTotals() {
+        let itemsTotal = 0;
+        let serviceAmount = parseFloat($('#service_amount').val()) || 0;
+        
+        // Сумиране на артикулите
+        $('.item-row').each(function() {
+            const quantity = parseFloat($(this).find('.item-quantity').val()) || 0;
+            const price = parseFloat($(this).find('.item-price').val()) || 0;
+            const rowTotal = quantity * price;
+            itemsTotal += rowTotal;
         });
-
-        // Функция за глобално търсене
-        function performGlobalSearch(query) {
+        
+        // Общо
+        const grandTotal = itemsTotal + serviceAmount;
+        
+        // Показване на сумите в евро
+        $('#items_total').text(formatNumber(itemsTotal) + ' €');
+        $('#service_display').text(formatNumber(serviceAmount) + ' €');
+        $('#grand_total').text(formatNumber(grandTotal) + ' €');
+        
+        // Показване на сумите в левове (ако трябва)
+        if (SHOW_BGN) {
+            $('#items_total_bgn').text(toBgn(itemsTotal) + ' лв');
+            $('#service_display_bgn').text(toBgn(serviceAmount) + ' лв');
+            $('#grand_total_bgn').text(toBgn(grandTotal) + ' лв');
+            $('#service_amount_bgn').text(toBgn(serviceAmount) + ' лв');
+        }
+    }
+    
+    // Функция за преизчисляване на сумата на ред
+    function updateRowTotal(row) {
+        const quantity = parseFloat(row.find('.item-quantity').val()) || 0;
+        const price = parseFloat(row.find('.item-price').val()) || 0;
+        const rowTotal = quantity * price;
+        
+        row.find('.item-total').text(formatNumber(rowTotal) + ' €');
+        if (SHOW_BGN) {
+            row.find('.item-total-bgn').text(toBgn(rowTotal) + ' лв');
+            row.find('.item-price-bgn').text(toBgn(price) + ' лв');
+        }
+    }
+    
+    // Търсене на клиенти
+    function searchClients(query) {
+        if (query.length < 2) {
+            $('#client-results').hide();
+            return;
+        }
+        
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() {
             $.ajax({
-                url: "/admin/api/search/customer-vehicle",
+                url: "{{ route('admin.customers.search') }}",
                 method: 'GET',
                 data: { q: query },
-                beforeSend: function() {
-                    $('#searchResults').html(`
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-center">
-                                <div class="spinner-border spinner-border-sm text-primary mr-2"></div>
-                                <span>Търсене...</span>
-                            </div>
-                        </div>
-                    `).show();
+                dataType: 'json',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },
                 success: function(data) {
-                    if (data.customers.length === 0 && data.vehicles.length === 0) {
-                        $('#searchResults').html(`
-                            <div class="list-group-item text-muted">
-                                <i class="fas fa-search mr-2"></i>Няма намерени резултати
-                            </div>
-                        `).show();
-                        return;
-                    }
-
-                    let html = '';
+                    const results = $('#client-results');
+                    results.empty();
                     
-                    // Групиране на резултатите
-                    if (data.customers && data.customers.length > 0) {
-                        html += `<div class="list-group-item list-group-item-secondary font-weight-bold">Клиенти</div>`;
-                        data.customers.forEach(customer => {
-                            html += `
-                                <div class="list-group-item list-group-item-action" 
-                                     data-type="customer" 
-                                     data-id="${customer.id}"
-                                     data-name="${customer.name}"
-                                     data-phone="${customer.phone || ''}"
-                                     data-email="${customer.email || ''}"
-                                     data-address="${customer.address || ''}">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <i class="fas fa-user text-primary mr-2"></i>
-                                            <strong>${highlightText(customer.name, query)}</strong>
-                                        </div>
-                                        <span class="badge badge-primary customer-badge">Клиент</span>
-                                    </div>
-                                    ${customer.phone ? `<small class="text-muted d-block mt-1"><i class="fas fa-phone mr-1"></i>${highlightText(customer.phone, query)}</small>` : ''}
-                                    ${customer.email ? `<small class="text-muted d-block"><i class="fas fa-envelope mr-1"></i>${highlightText(customer.email, query)}</small>` : ''}
-                                    <small class="text-muted d-block">${customer.vehicles_count || 0} автомобила</small>
-                                </div>
-                            `;
+                    if (data && data.length > 0) {
+                        data.forEach(function(customer) {
+                            const option = $('<div class="client-option"></div>');
+                            option.html(`
+                                <div class="client-name">${customer.name}</div>
+                                <div class="client-phone">${customer.phone || 'Няма телефон'}</div>
+                            `);
+                            
+                            option.data('customer', customer);
+                            option.on('click', function() {
+                                selectCustomer(customer);
+                            });
+                            
+                            results.append(option);
                         });
+                        
+                        // Показваме резултатите
+                        results.show();
+                    } else {
+                        results.hide();
                     }
-
-                    if (data.vehicles && data.vehicles.length > 0) {
-                        html += `<div class="list-group-item list-group-item-secondary font-weight-bold">Автомобили</div>`;
-                        data.vehicles.forEach(vehicle => {
-                            html += `
-                                <div class="list-group-item list-group-item-action" 
-                                     data-type="vehicle" 
-                                     data-id="${vehicle.id}"
-                                     data-customer-id="${vehicle.customer_id}"
-                                     data-plate="${vehicle.plate}"
-                                     data-make="${vehicle.make || ''}"
-                                     data-model="${vehicle.model || ''}"
-                                     data-year="${vehicle.year || ''}"
-                                     data-engine="${vehicle.engine || ''}"
-                                     data-vin="${vehicle.vin || ''}"
-                                     data-mileage="${vehicle.mileage || ''}">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <i class="fas fa-car text-success mr-2"></i>
-                                            <strong>${highlightText(vehicle.plate, query)}</strong>
-                                        </div>
-                                        <span class="badge badge-success customer-badge">Автомобил</span>
-                                    </div>
-                                    <small class="text-muted d-block mt-1">
-                                        ${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year ? `(${vehicle.year})` : ''}
-                                    </small>
-                                    <small class="text-muted d-block">
-                                        <i class="fas fa-user mr-1"></i>${vehicle.customer?.name || 'Няма клиент'}
-                                    </small>
-                                </div>
-                            `;
-                        });
-                    }
-
-                    $('#searchResults').html(html).show();
-                    
-                    // Добавяне на event listener за избор на резултат
-                    $('.list-group-item[data-type]').click(function() {
-                        selectSearchResult($(this));
-                    });
                 },
                 error: function() {
-                    $('#searchResults').html(`
-                        <div class="list-group-item text-danger">
-                            <i class="fas fa-exclamation-circle mr-2"></i>Грешка при търсенето
-                        </div>
-                    `).show();
+                    $('#client-results').hide();
                 }
             });
-        }
-
-        // Функция за осветяване на текста при търсене
-        function highlightText(text, query) {
-            if (!query || !text) return text;
-            const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-            return text.toString().replace(regex, '<span class="search-highlight">$1</span>');
-        }
-
-        function escapeRegExp(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        }
-
-        // Функция за избор на резултат от търсенето
-        function selectSearchResult($element) {
-            const type = $element.data('type');
-            
-            if (type === 'customer') {
-                // Попълване на клиент
-                $('#customer_id').val($element.data('id')).trigger('change');
-                $('#customerInfo').html(`
-                    <small class="text-muted">
-                        <i class="fas fa-user text-primary mr-1"></i>
-                        <strong>${$element.data('name')}</strong><br>
-                        ${$element.data('phone') ? `<i class="fas fa-phone text-primary mr-1"></i>${$element.data('phone')}<br>` : ''}
-                        ${$element.data('email') ? `<i class="fas fa-envelope text-primary mr-1"></i>${$element.data('email')}` : ''}
-                    </small>
-                `).show();
-                
-                // Зареждане на автомобилите на клиента
-                loadCustomerVehicles($element.data('id'));
-                
-            } else if (type === 'vehicle') {
-                // Попълване на автомобил и неговия клиент
-                $('#vehicle_id').val($element.data('id')).trigger('change');
-                
-                // Попълване на информация за автомобила
-                $('#vehicleInfo').html(`
-                    <small class="text-muted">
-                        <i class="fas fa-car text-primary mr-1"></i>
-                        <strong>${$element.data('make')} ${$element.data('model')}</strong><br>
-                        <i class="fas fa-hashtag text-primary mr-1"></i>
-                        Рег. номер: <strong>${$element.data('plate')}</strong><br>
-                        ${$element.data('year') ? `<i class="fas fa-calendar text-primary mr-1"></i>Година: ${$element.data('year')}<br>` : ''}
-                        ${$element.data('engine') ? `<i class="fas fa-gas-pump text-primary mr-1"></i>Двигател: ${$element.data('engine')}<br>` : ''}
-                        ${$element.data('mileage') ? `<i class="fas fa-tachometer-alt text-primary mr-1"></i>Пробег: ${$element.data('mileage')} км` : ''}
-                    </small>
-                `).show();
-                
-                // Попълване на пробега
-                if ($element.data('mileage')) {
-                    $('#vehicle_mileage').val($element.data('mileage'));
-                }
-                
-                // Попълване на клиента
-                if ($element.data('customerId')) {
-                    $('#customer_id').val($element.data('customerId')).trigger('change');
-                }
-            }
-            
-            // Скриване на резултатите и изчистване на търсенето
-            $('#searchResults').hide().empty();
-            $('#globalSearch').val('');
-        }
-
-        // Функция за зареждане на автомобилите на клиент
-        function loadCustomerVehicles(customerId) {
-            if (!customerId) {
-                $('#vehicle_id').html('<option value=""></option>').prop('disabled', true).trigger('change');
-                return;
-            }
-            
-            $('#vehicle_id').html('<option value="">Зареждане...</option>').prop('disabled', true);
-            
-            $.get("/admin/api/customer-vehicles/" + customerId, function (data) {
-                let html = '<option value=""></option>';
-                if (data.length > 0) {
-                    $.each(data, function (i, v) {
-                        html += `<option value="${v.id}">${v.plate} - ${v.make} ${v.model} (${v.year || '?'})</option>`;
-                    });
-                } else {
-                    html = '<option value="">Няма регистрирани автомобили</option>';
-                }
-                $('#vehicle_id').html(html).prop('disabled', false).trigger('change');
-            }).fail(function() {
-                $('#vehicle_id').html('<option value="">Грешка при зареждане</option>').prop('disabled', false);
-            });
-        }
-
-        // Функция за зареждане на информация за клиент
-        function loadCustomerInfo(customerId) {
-            $.get("/admin/api/customer-info/" + customerId, function (data) {
-                if (data) {
-                    $('#customerInfo').html(`
-                        <small class="text-muted">
-                            <i class="fas fa-user text-primary mr-1"></i>
-                            <strong>${data.name}</strong><br>
-                            ${data.phone ? `<i class="fas fa-phone text-primary mr-1"></i>${data.phone}<br>` : ''}
-                            ${data.email ? `<i class="fas fa-envelope text-primary mr-1"></i>${data.email}<br>` : ''}
-                            ${data.address ? `<i class="fas fa-map-marker-alt text-primary mr-1"></i>${data.address}` : ''}
-                        </small>
-                    `).show();
-                }
-            }).fail(function() {
-                $('#customerInfo').hide();
-            });
-        }
-
-        // Функция за зареждане на информация за автомобил
-        function loadVehicleInfo(vehicleId) {
-            $.get("/admin/api/vehicle-info/" + vehicleId, function (data) {
-                if (data) {
-                    $('#vehicleInfo').html(`
-                        <small class="text-muted">
-                            <i class="fas fa-car text-primary mr-1"></i>
-                            <strong>${data.make} ${data.model}</strong><br>
-                            <i class="fas fa-hashtag text-primary mr-1"></i>
-                            Рег. номер: <strong>${data.plate}</strong><br>
-                            ${data.year ? `<i class="fas fa-calendar text-primary mr-1"></i>Година: ${data.year}<br>` : ''}
-                            ${data.engine ? `<i class="fas fa-gas-pump text-primary mr-1"></i>Двигател: ${data.engine}<br>` : ''}
-                            ${data.vin ? `<i class="fas fa-barcode text-primary mr-1"></i>VIN: ${data.vin}<br>` : ''}
-                            ${data.mileage ? `<i class="fas fa-tachometer-alt text-primary mr-1"></i>Пробег: ${data.mileage} км` : ''}
-                        </small>
-                    `).show();
-                    
-                    // Попълване на пробега в формата
-                    if (data.mileage) {
-                        $('#vehicle_mileage').val(data.mileage);
-                    }
-                }
-            }).fail(function() {
-                $('#vehicleInfo').hide();
-            });
-        }
-
-        // =============== Функции за таблицата с позиции ===============
-        let rowIdx = 0;
-
-        function calcLine(row) {
-            const qty   = parseFloat(row.find('.qty').val()) || 0;
-            const price = parseFloat(row.find('.price').val()) || 0;
-            const vat   = parseFloat(row.find('.vat').val()) || 0;
-            const line  = qty * price;
-            const vatAm = line * vat / 100;
-            row.find('.lineTotal').text((line + vatAm).toFixed(2));
-            calcTotals();
-            updateItemsCount();
-        }
-
-        function calcTotals() {
-            let totalWithout = 0, totalVat = 0;
-            $('#itemsTable tbody tr').each(function () {
-                const qty   = parseFloat($(this).find('.qty').val()) || 0;
-                const price = parseFloat($(this).find('.price').val()) || 0;
-                const vat   = parseFloat($(this).find('.vat').val()) || 0;
-                const line  = qty * price;
-                totalWithout += line;
-                totalVat     += line * vat / 100;
-            });
-            $('#totalWithoutVat').text(totalWithout.toFixed(2));
-            $('#totalVat').text(totalVat.toFixed(2));
-            $('#grandTotal').text((totalWithout + totalVat).toFixed(2));
-        }
-
-        function updateItemsCount() {
-            const count = $('#itemsTable tbody tr').length;
-            $('#itemsCount').text(count + ' позиции');
-            $('#itemsCountFooter').text(count);
-        }
-
-        function addRow(rowType = 'product', predefinedItem = null) {
-            rowIdx++;
-            const isService = rowType === 'service';
-            const isQuickService = rowType === 'quick_service';
-            const rowClass = isService ? 'service-row' : (isQuickService ? 'quick-service-row' : 'product-row');
-            
-            let productOptions = '<option value=""></option>';
-            let placeholder = 'Изберете продукт';
-            
-            if (isService || isQuickService) {
-                // Добави услуги
-                placeholder = 'Изберете услуга';
-                @if(isset($services) && $services->count())
-                    @foreach($services as $service)
-                        productOptions += `
-                            <option value="service_{{ $service->id }}" 
-                                    data-price="{{ $service->price }}" 
-                                    data-vat="{{ $service->vat_percent }}"
-                                    data-type="service">
-                                {{ $service->code }} - {{ $service->name }}
-                            </option>`;
-                    @endforeach
-                @endif
-            } else {
-                // Добави продукти
-                @if(isset($products) && $products->count())
-                    @foreach($products as $product)
-                        productOptions += `
-                            <option value="product_{{ $product->id }}" 
-                                    data-price="{{ $product->price }}" 
-                                    data-vat="{{ $product->vat_percent }}"
-                                    data-type="product">
-                                {{ $product->sku }} - {{ $product->name }}
-                            </option>`;
-                    @endforeach
-                @endif
-            }
-
-            const html = `
-                <tr id="R${rowIdx}" class="${rowClass}">
-                    <td class="align-middle">${rowIdx}</td>
-                    <td>
-                        <select name="items[${rowIdx}][product_id]" class="form-control form-control-sm product-select" 
-                                style="width:100%" data-row-type="${rowType}">
-                            ${productOptions}
-                        </select>
-                        <input type="hidden" name="items[${rowIdx}][item_type]" value="${isService || isQuickService ? 'service' : 'product'}">
-                    </td>
-                    <td>
-                        <input type="text" name="items[${rowIdx}][description]" 
-                               class="form-control form-control-sm" placeholder="Описание" required>
-                    </td>
-                    <td>
-                        <input type="number" name="items[${rowIdx}][quantity]" 
-                               class="form-control form-control-sm qty" min="0.01" step="0.01" value="1" required>
-                    </td>
-                    <td>
-                        <input type="number" name="items[${rowIdx}][unit_price]" 
-                               class="form-control form-control-sm price" min="0.01" step="0.01" required>
-                    </td>
-                    <td>
-                        <input type="number" name="items[${rowIdx}][vat_percent]" 
-                               class="form-control form-control-sm vat" min="0" max="100" step="0.01" value="20" required>
-                    </td>
-                    <td class="align-middle lineTotal font-weight-bold">0.00</td>
-                    <td class="align-middle">
-                        <button type="button" class="btn btn-sm btn-danger removeRow" title="Премахни">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
-            
-            $('#itemsTable tbody').append(html);
-            
-            // Инициализация на Select2
-            $(`#R${rowIdx} .product-select`).select2({
-                theme: 'bootstrap',
-                language: 'bg',
-                placeholder: placeholder,
-                allowClear: true,
-                width: '100%'
-            });
-            
-            // Ако има predefined елемент, избери го
-            if (predefinedItem) {
-                $(`#R${rowIdx} .product-select`).val(predefinedItem.id).trigger('change');
-                $(`#R${rowIdx} .price`).val(predefinedItem.price);
-                $(`#R${rowIdx} .vat`).val(predefinedItem.vat_percent || 20);
-                $(`#R${rowIdx} input[name*="description"]`).val(predefinedItem.name);
-                calcLine($(`#R${rowIdx}`));
-            }
-            
-            updateItemsCount();
-        }
-
-        // Event Listeners за таблицата
-        $(document)
-            .on('click', '#addProductRow', () => addRow('product'))
-            .on('click', '#addServiceRow', () => addRow('service'))
-            .on('click', '#addQuickService', () => {
-                addRow('service', {
-                    id: 'quick_service',
-                    name: 'Бърз ремонт',
-                    price: 50,
-                    vat_percent: 20
-                });
-            })
-            .on('click', '.removeRow', function () {
-                $(this).closest('tr').remove();
-                calcTotals();
-                updateItemsCount();
-                renumberRows();
-            })
-            .on('change keyup', '.qty, .price, .vat', function () {
-                calcLine($(this).closest('tr'));
-            })
-            .on('change', '.product-select', function () {
-                const option = $(this).find(':selected');
-                const row = $(this).closest('tr');
-                const price = option.data('price');
-                const vat = option.data('vat');
-                const type = option.data('type');
-                
-                if (price) row.find('.price').val(price);
-                if (vat) row.find('.vat').val(vat);
-                
-                if (option.text() && !row.find('input[name*="description"]').val()) {
-                    row.find('input[name*="description"]').val(option.text().split(' - ')[1] || option.text());
-                }
-                
-                // Обновяване на типа на артикула
-                row.find('input[name*="item_type"]').val(type);
-                
-                calcLine(row);
-            });
-
-        // Преномериране на редове след изтриване
-        function renumberRows() {
-            $('#itemsTable tbody tr').each(function(index) {
-                $(this).find('td:first').text(index + 1);
-                $(this).attr('id', 'R' + (index + 1));
-                // Обновяване на имената на полетата
-                $(this).find('[name*="items"]').each(function() {
-                    const name = $(this).attr('name');
-                    $(this).attr('name', name.replace(/items\[\d+\]/, `items[${index + 1}]`));
-                });
-            });
-            rowIdx = $('#itemsTable tbody tr').length;
-        }
-
-        // Добавяне на първи ред при зареждане
-        $(document).ready(function() {
-            addRow('product');
+        }, 300);
+    }
+    
+    // Избор на клиент
+    function selectCustomer(customer) {
+        $('#customer_id').val(customer.id);
+        $('#client_name').val(customer.name);
+        $('#phone').val(customer.phone || '');
+        $('#client_search').val(customer.name);
+        $('#client-results').hide();
+        
+        // Фокус в следващото поле
+        setTimeout(() => $('#vehicle').focus(), 100);
+    }
+    
+    // Изчистване на избрания клиент
+    function clearCustomer() {
+        $('#customer_id').val('');
+        $('#client_name').val('');
+        $('#phone').val('');
+        $('#client_search').val('');
+        $('#client_search').focus();
+        $('#client-results').hide();
+    }
+    
+    // Добавяне на нов артикул
+    $('#add-item').on('click', function() {
+        const template = document.getElementById('item-template');
+        const clone = template.content.cloneNode(true);
+        itemCounter++;
+        
+        // Замяна на INDEX с пореден номер
+        $(clone).find('input, select').each(function() {
+            this.name = this.name.replace(/INDEX/g, itemCounter);
         });
-    </script>
-@endpush
+        
+        $(clone).find('.item-index').text(itemCounter);
+        
+        $('#items-container').append(clone);
+        $('#no-items-message').hide();
+        
+        // Инициализиране на събития за новия ред
+        const newRow = $('#items-container').find('.item-row').last();
+        initRowEvents(newRow);
+        
+        // Фокус върху полето за описание
+        newRow.find('.item-name').focus();
+        
+        updateTotals();
+    });
+    
+    // Инициализиране на събития за ред
+    function initRowEvents(row) {
+        row.find('.item-quantity, .item-price').on('input', function() {
+            updateRowTotal(row);
+            updateTotals();
+        });
+        
+        row.find('.remove-item').on('click', function() {
+            if (confirm('Сигурни ли сте, че искате да премахнете този артикул?')) {
+                row.remove();
+                updateItemIndexes();
+                updateTotals();
+                
+                // Ако няма артикули, показваме съобщението
+                if ($('.item-row').length === 0) {
+                    $('#no-items-message').show();
+                }
+            }
+        });
+    }
+    
+    // Обновяване на номерата на редовете
+    function updateItemIndexes() {
+        $('.item-row').each(function(index) {
+            $(this).find('.item-index').text(index + 1);
+            
+            // Обновяване на имената на полетата с новия индекс
+            const newIndex = index + 1;
+            $(this).find('input, select').each(function() {
+                const name = this.name;
+                const newName = name.replace(/items\[\d+\]/, `items[${newIndex}]`);
+                this.name = newName;
+            });
+        });
+        itemCounter = $('.item-row').length;
+    }
+    
+    // Инициализиране при зареждане на страницата
+    function init() {
+        updateTotals();
+        
+        // Добавяме един празен ред по подразбиране
+        $('#add-item').click();
+        
+        // Събития за автокомплит на клиенти
+        $('#client_search').on('input', function() {
+            searchClients($(this).val());
+        });
+        
+        $('#client_search').on('focus', function() {
+            if ($(this).val().length >= 2) {
+                $('#client-results').show();
+            }
+        });
+        
+        // Скриване при клик извън
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#client_search, #client-results').length) {
+                $('#client-results').hide();
+            }
+        });
+        
+        $('#clear-client').on('click', function(e) {
+            e.preventDefault();
+            clearCustomer();
+        });
+        
+        // Автоматично избиране на клиент при натискане на Enter
+        $('#client_search').on('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const firstOption = $('.client-option:first');
+                if (firstOption.length) {
+                    firstOption.click();
+                }
+            }
+            
+            if (e.key === 'Escape') {
+                $('#client-results').hide();
+            }
+        });
+        
+        // Събитие за промяна на стойността на труда
+        $('#service_amount').on('input', updateTotals);
+        
+        // Автоматично форматиране на числата
+        $('body').on('blur', 'input[type="number"]', function() {
+            const value = parseFloat($(this).val());
+            if (!isNaN(value)) {
+                $(this).val(value.toFixed(2));
+            }
+        });
+        
+        // Фокус в полето за търсене на клиент
+        setTimeout(() => {
+            $('#client_search').focus();
+        }, 100);
+    }
+    
+    // Валидация на формата преди изпращане
+    $('#work-order-form').on('submit', function(e) {
+        let valid = true;
+        const errors = [];
+        
+        // Проверка за задължително име на клиент
+        if (!$('#client_name').val().trim()) {
+            errors.push('Моля, изберете клиент от списъка!');
+            $('#client_search').focus();
+            valid = false;
+        }
+        
+        // Проверка за валидни суми (не отрицателни)
+        $('.item-price, .item-quantity, #service_amount').each(function() {
+            const value = parseFloat($(this).val());
+            if (value < 0) {
+                errors.push('Стойностите не могат да бъдат отрицателни!');
+                $(this).focus();
+                valid = false;
+                return false;
+            }
+        });
+        
+        // Проверка за поне един артикул с описание
+        let hasValidItem = false;
+        $('.item-name').each(function() {
+            if ($(this).val().trim()) {
+                hasValidItem = true;
+                return false;
+            }
+        });
+        
+        if (!hasValidItem) {
+            errors.push('Моля, добавете поне един артикул или услуга!');
+            valid = false;
+        }
+        
+        if (!valid) {
+            e.preventDefault();
+            let errorMessage = 'Моля, коригирайте следните грешки:\n\n';
+            errors.forEach((error, index) => {
+                errorMessage += `${index + 1}. ${error}\n`;
+            });
+            alert(errorMessage);
+        } else {
+            // Показване на съобщение за успешно запазване
+            $(this).find('button[type="submit"]')
+                .html('<i class="fas fa-spinner fa-spin mr-2"></i> Запазване...')
+                .prop('disabled', true);
+        }
+    });
+    
+    // Инициализация
+    init();
+});
+</script>
+@stop

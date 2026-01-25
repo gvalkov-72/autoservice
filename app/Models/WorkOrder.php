@@ -2,78 +2,47 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class WorkOrder extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'number',
-        'customer_id',
-        'vehicle_id',
-        'status',
-        'received_at',
-        'km_on_receive',
-        'assigned_to',
-        'total_without_vat',
-        'vat_amount',
-        'total',
+        'old_id',
+        'client_name',
+        'order_date',
         'created_by',
-        'notes',
+        'note',
+        'vehicle',
+        'chassis_number',
+        'plate_number',
+        'phone',
+        'mechanic_code',
+        'mileage',
+        'service_amount',
     ];
 
     protected $casts = [
-        'received_at' => 'datetime',
-        'total_without_vat' => 'decimal:2',
-        'vat_amount' => 'decimal:2',
-        'total' => 'decimal:2',
+        'order_date'     => 'date',
+        'service_amount' => 'decimal:2',
     ];
 
     /**
-     * Клиент
-     */
-    public function customer()
-    {
-        return $this->belongsTo(Customer::class);
-    }
-
-    /**
-     * Автомобил
-     */
-    public function vehicle()
-    {
-        return $this->belongsTo(Vehicle::class);
-    }
-
-    public function invoice()
-    {
-        return $this->belongsTo(Invoice::class);
-    }
-
-
-    /**
-     * Назначен механик (user)
-     */
-    public function mechanic()
-    {
-        return $this->belongsTo(User::class, 'assigned_to');
-    }
-
-    /**
-     * Създадено от (user)
-     */
-    public function createdBy()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Редове на работната поръчка (дейности / части)
+     * Редове (POitems)
      */
     public function items()
     {
-        return $this->hasMany(WorkOrderItem::class);
+        return $this->hasMany(WorkOrderItem::class, 'work_order_old_id', 'old_id');
+    }
+
+    /**
+     * Обща сума (труд + редове)
+     */
+    public function getTotalAttribute(): float
+    {
+        return (float) $this->service_amount
+            + (float) $this->items()->sum('row_total');
     }
 }

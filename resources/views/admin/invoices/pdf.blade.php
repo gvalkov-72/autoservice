@@ -344,11 +344,29 @@
         .no-break {
             page-break-inside: avoid;
         }
-        
+
         .responsible-name {
             font-size: 6.5pt;
             margin-top: 1mm;
             font-weight: bold;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 5mm;
+            left: 0;
+            right: 0;
+            height: 8mm;
+            text-align: center;
+            font-size: 7pt;
+            color: #666;
+            border-top: 0.4pt solid #ccc;
+            padding-top: 2mm;
+        }
+
+
+        .page-number:before {
+            content: "Страница " counter(page) " от " counter(pages);
         }
     </style>
 </head>
@@ -420,19 +438,19 @@
                         Падеж: {{ \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y') }}
                     </div>
                 @endif
-                
+
                 <!-- ОТГОВОРНИК ЗА СЪЗДАВАНЕ -->
-                @if($invoice->invoice_cre_responsible)
-                <div class="invoice-date" style="margin-top: 1mm;">
-                    Създал: {{ $invoice->invoice_cre_responsible }}
-                </div>
+                @if ($invoice->invoice_cre_responsible)
+                    <div class="invoice-date" style="margin-top: 1mm;">
+                        Създал: {{ $invoice->invoice_cre_responsible }}
+                    </div>
                 @endif
-                
+
                 <!-- ОТГОВОРНИК ЗА ПОЛУЧАВАНЕ -->
-                @if($invoice->invoice_rec_responsible)
-                <div class="invoice-date" style="margin-top: 0.3mm;">
-                    Получил: {{ $invoice->invoice_rec_responsible }}
-                </div>
+                @if ($invoice->invoice_rec_responsible)
+                    <div class="invoice-date" style="margin-top: 0.3mm;">
+                        Получил: {{ $invoice->invoice_rec_responsible }}
+                    </div>
                 @endif
             </td>
 
@@ -628,13 +646,13 @@
                         </tr>
                     </table>
                     @if ($invoice->workOrder && $invoice->workOrder->number)
-                    <table class="line-table">
-                        <tr>
-                            <td class="label">Поръчка:</td>
-                            <td class="dots"></td>
-                            <td class="value">{{ $invoice->workOrder->number }}</td>
-                        </tr>
-                    </table>
+                        <table class="line-table">
+                            <tr>
+                                <td class="label">Поръчка:</td>
+                                <td class="dots"></td>
+                                <td class="value">{{ $invoice->workOrder->number }}</td>
+                            </tr>
+                        </table>
                     @endif
                 </div>
             </td>
@@ -692,28 +710,25 @@
             <td>
                 <div class="signature-text">Изготвил:</div>
                 <div class="signature-line"></div>
-                @if($invoice->invoice_cre_responsible)
-                <div class="responsible-name">{{ $invoice->invoice_cre_responsible }}</div>
+                @if ($invoice->invoice_cre_responsible)
+                    <div class="responsible-name">{{ $invoice->invoice_cre_responsible }}</div>
                 @endif
             </td>
             <td>
                 <div class="signature-text">Получил:</div>
                 <div class="signature-line"></div>
-                @if($invoice->invoice_rec_responsible)
-                <div class="responsible-name">{{ $invoice->invoice_rec_responsible }}</div>
+                @if ($invoice->invoice_rec_responsible)
+                    <div class="responsible-name">{{ $invoice->invoice_rec_responsible }}</div>
                 @endif
             </td>
         </tr>
     </table>
 
     <!-- ФУТЪР С НОМЕРАЦИЯ -->
-    <table class="footer-table">
-        <tr>
-            <td>
-                Страница 1
-            </td>
-        </tr>
-    </table>
+    <div class="footer">
+        <span class="page-number"></span>
+    </div>
+
 </body>
 
 </html>

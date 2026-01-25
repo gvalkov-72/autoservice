@@ -21,11 +21,10 @@ class BankImportSeeder extends Seeder
         }
 
         $lines = explode("\n", file_get_contents($filePath));
-
         $header = null;
         $columnCount = 0;
 
-        // 1️⃣ Намираме header реда (генерично – както при DOCTYPES)
+        // Намерете заглавията на колоните
         foreach ($lines as $line) {
             $line = trim($line);
 
@@ -49,10 +48,9 @@ class BankImportSeeder extends Seeder
             return;
         }
 
-        Bank::truncate();
         $imported = 0;
 
-        // 2️⃣ Обхождаме ВСИЧКИ редове и търсим data редове
+        // Обработване на данни
         foreach ($lines as $line) {
             $line = trim($line);
 
@@ -70,26 +68,28 @@ class BankImportSeeder extends Seeder
                 continue;
             }
 
-            // първата колона трябва да е ID
             if (!is_numeric($cols[0])) {
                 continue;
             }
 
             try {
-                Bank::create([
-                    'id'         => (int)$cols[0],
-                    'account'    => $this->clean($cols[1] ?? ''),
-                    'bank_code'  => $this->clean($cols[2] ?? ''),
-                    'name'       => $this->clean($cols[3] ?? ''),
-                    'currency'   => $this->clean($cols[4] ?? 'BGN'),
-                    'method'     => (int)($cols[5] ?? 1),
-                    'type'       => (int)($cols[6] ?? 1),
-                    'short_name' => $this->clean($cols[7] ?? ''),
-                    'is_default' => $this->parseBool($cols[8] ?? 0),
-                    'active'     => true,
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
+                // updateOrCreate вместо truncate + create
+                Bank::updateOrCreate(
+                    ['id' => (int)$cols[0]],
+                    [
+                        'account'    => $this->clean($cols[1] ?? ''),
+                        'bank_code'  => $this->clean($cols[2] ?? ''),
+                        'name'       => $this->clean($cols[3] ?? ''),
+                        'currency'   => $this->clean($cols[4] ?? 'BGN'),
+                        'method'     => (int)($cols[5] ?? 1),
+                        'type'       => (int)($cols[6] ?? 1),
+                        'short_name' => $this->clean($cols[7] ?? ''),
+                        'is_default' => $this->parseBool($cols[8] ?? 0),
+                        'active'     => true,
+                        'updated_at' => Carbon::now(),
+                        'created_at' => Bank::find($cols[0])?->created_at ?? Carbon::now(),
+                    ]
+                );
 
                 $imported++;
             } catch (\Throwable $e) {
@@ -102,8 +102,6 @@ class BankImportSeeder extends Seeder
 
         $this->command->info("✅ Импортирани банки: {$imported}");
     }
-
-    /* ================= helpers (идентични) ================= */
 
     private function parseRow(string $line): array
     {
@@ -141,7 +139,6 @@ class BankImportSeeder extends Seeder
         }
 
         $v = strtolower(trim((string)$v));
-
         return in_array($v, ['1', 'yes', 'true', 'да', 'on'], true);
     }
 }

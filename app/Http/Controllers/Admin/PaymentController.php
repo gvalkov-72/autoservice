@@ -5,55 +5,59 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
 
 class PaymentController extends Controller
 {
-    public function index()
+    /**
+     * Запис на плащане към фактура
+     */
+    public function store(Request $request, Invoice $invoice)
     {
-        $payments = Payment::with(['invoice.customer', 'creator'])->latest()->paginate(25);
-        return view('admin.payments.index', compact('payments'));
-    }
-
-    public function create(?Invoice $invoice = null)
-    {
-        $invoices = Invoice::doesntHave('payments')->pluck('number', 'id');
-        return view('admin.payments.create', compact('invoice', 'invoices'));
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-            'invoice_id' => 'required|exists:invoices,id',
-            'amount'     => 'required|numeric|min:0.01',
-            'method'     => 'required|in:cash,card,bank',
-            'paid_at'    => 'required|date',
-            'reference'  => 'nullable|string|max:50',
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'paid_at' => ['required', 'date'],
+            'payment_method_id' => ['required', 'exists:payment_methods,id'],
+            'bank_id' => ['nullable', 'exists:banks,id'],
+            'reference' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $payment = Payment::create([
-            'invoice_id'  => $request->invoice_id,
-            'amount'      => $request->amount,
-            'method'      => $request->method,
-            'paid_at'     => $request->paid_at,
-            'reference'   => $request->reference,
-            'created_by'  => Auth::check() ? Auth::user()->id : 0,
-        ]);
-
-        $invoice = $payment->invoice;
-        if ($invoice->payments()->sum('amount') >= $invoice->grand_total) {
-            $invoice->update(['status' => 'paid']);
+        // Защита от надплащане
+        if ($data['amount'] > $invoice->remaining_amount) {
+            return back()->withErrors([
+                'amount' => 'Сумата надвишава оставащата за плащане по фактурата.',
+            ]);
         }
 
-        return redirect()->route('admin.payments.index')->with('success', 'Плащането е записано.');
+        Payment::create([
+            'invoice_id' => $invoice->id,
+            'amount' => $data['amount'],
+            'paid_at' => $data['paid_at'],
+            'payment_method_id' => $data['payment_method_id'],
+            'bank_id' => $data['bank_id'] ?? null,
+            'reference' => $data['reference'] ?? null,
+            'created_by' => Auth::id(),
+        ]);
+
+        // ❗ НЯМА update на invoice тук
+        // Това става автоматично в Payment model
+
+        return back()->with('success', 'Плащането е добавено успешно.');
     }
 
-    public function pdf(Payment $payment)
+    /**
+     * Изтриване на плащане
+     */
+    public function destroy(Payment $payment): RedirectResponse
     {
-        $copy = request()->get('copy', 0);
-        return Pdf::loadView('admin.payments.receipt', compact('payment', 'copy'))
-                  ->stream('receipt_'.$payment->id.'.pdf');
+        $invoice = $payment->invoice;
+
+        $payment->delete(); // 🔥 refreshPaymentStatus() се вика автоматично
+
+        return redirect()
+            ->route('admin.invoices.show', $invoice)
+            ->with('success', 'Плащането беше изтрито успешно.');
     }
 }

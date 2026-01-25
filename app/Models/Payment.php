@@ -3,16 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payment extends Model
 {
-    use SoftDeletes;
-
     protected $fillable = [
         'invoice_id',
-        'payment_method_id',
         'bank_id',
+        'payment_method_id',
         'amount',
         'paid_at',
         'reference',
@@ -21,23 +18,12 @@ class Payment extends Model
 
     protected $casts = [
         'paid_at' => 'date',
-        'amount' => 'decimal:2',
+        'amount'  => 'decimal:2',
     ];
-
-    /*
-    |--------------------------------------------------------------------------
-    | RELATIONS
-    |--------------------------------------------------------------------------
-    */
 
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
-    }
-
-    public function paymentMethod()
-    {
-        return $this->belongsTo(PaymentMethod::class);
     }
 
     public function bank()
@@ -45,8 +31,19 @@ class Payment extends Model
         return $this->belongsTo(Bank::class);
     }
 
-    public function creator()
+    public function method()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(PaymentMethod::class, 'payment_method_id');
+    }
+
+    protected static function booted()
+    {
+        static::created(function (Payment $payment) {
+            $payment->invoice?->refreshPaymentStatus();
+        });
+
+        static::deleted(function (Payment $payment) {
+            $payment->invoice?->refreshPaymentStatus();
+        });
     }
 }

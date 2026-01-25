@@ -11,17 +11,8 @@ class MasterSeeder extends Seeder
         $this->call([
             RolesAndPermissionsSeeder::class,
             AdminUserSeeder::class,
+            //DoctypeImportSeeder::class,
             CustomerImportSeeder::class,
-            //CustomerSeeder::class,
-            //VehicleImportSeeder::class,
-            //VehicleSeeder::class,
-            BankImportSeeder::class,
-            DoctypeImportSeeder::class,
-            ProductImportSeeder::class,
-            //ProductSeeder::class,
-            InvoiceImportSeeder::class,
-            InvoiceItemImportSeeder::class,
-            ServiceSeeder::class,
         ]);
     }
 }
