@@ -1,9 +1,11 @@
 <?php
+// app/Models/Vehicle.php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Vehicle extends Model
 {
@@ -12,18 +14,17 @@ class Vehicle extends Model
         'vehicle',
         'plate_number',
         'chassis_number',
-        'mileage',
+        'last_mileage',
         'notes',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'mileage' => 'integer',
     ];
 
     /**
-     * Връзка с клиента
+     * Клиент, притежател на автомобила
      */
     public function customer(): BelongsTo
     {
@@ -31,32 +32,10 @@ class Vehicle extends Model
     }
 
     /**
-     * Връзка с работни поръчки
+     * Работни поръчки за този автомобил
      */
-    public function workOrders()
+    public function workOrders(): HasMany
     {
         return $this->hasMany(WorkOrder::class);
-    }
-
-    /**
-     * Гетър за пълно описание на автомобила
-     */
-    public function getFullDescriptionAttribute(): string
-    {
-        $parts = [];
-        
-        if ($this->vehicle) {
-            $parts[] = $this->vehicle;
-        }
-        
-        if ($this->plate_number) {
-            $parts[] = '(' . $this->plate_number . ')';
-        }
-        
-        if ($this->chassis_number) {
-            $parts[] = 'VIN: ' . $this->chassis_number;
-        }
-        
-        return implode(' ', $parts);
     }
 }

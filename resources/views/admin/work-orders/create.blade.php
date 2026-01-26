@@ -68,7 +68,7 @@
                                             <i class="fas fa-user-check"></i>
                                         </span>
                                     </div>
-                                    <input type="text" class="form-control border-success bg-light" 
+                                    <input type="text" class="form-control border-success display-field" 
                                            id="client_name" name="client_name" 
                                            value="{{ old('client_name') }}" required readonly>
                                 </div>
@@ -94,49 +94,90 @@
                                             <i class="fas fa-phone-alt"></i>
                                         </span>
                                     </div>
-                                    <input type="text" class="form-control border-info bg-light" 
+                                    <input type="text" class="form-control border-info display-field" 
                                            id="phone" name="phone" value="{{ old('phone') }}" readonly>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row mt-3">
-                        <!-- Автомобил -->
+                    <!-- СЕКЦИЯ ЗА ИЗБОР НА АВТОМОБИЛ -->
+                    <div class="form-group mt-3" id="vehicle-selection-group" style="display: none;">
+                        <label for="vehicle_id" class="font-weight-bold text-primary">
+                            <i class="fas fa-car mr-1"></i>Избор на автомобил <span id="vehicle-count" class="text-muted"></span>
+                            <button type="button" class="btn btn-link btn-sm p-0 ml-2" id="switch-to-new-vehicle" style="display: none;">
+                                <small><i class="fas fa-exchange-alt"></i> Добави нов</small>
+                            </button>
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <select class="form-control form-control-lg border-primary vehicle-select" 
+                                    id="vehicle_id" name="vehicle_id">
+                                <option value="">-- Изберете автомобил --</option>
+                            </select>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-outline-primary" id="refresh-vehicles" title="Обнови списъка">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <small class="text-muted">Изберете автомобил от списъка или добавете нов</small>
+                    </div>
+
+                    <!-- СЕКЦИЯ ЗА ДОБАВЯНЕ НА НОВ АВТОМОБИЛ -->
+                    <div class="form-group mt-3" id="new-vehicle-group" style="display: none;">
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <button type="button" class="close" id="cancel-new-vehicle">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                            <h5><i class="fas fa-car mr-1"></i>Добавяне на нов автомобил</h5>
+                            <small>Попълнете данните на новия автомобил</small>
+                        </div>
+                    </div>
+
+                    <!-- СЕКЦИЯ С ДЕТАЙЛИ ЗА АВТОМОБИЛА -->
+                    <div class="row mt-3" id="vehicle-details" style="display: none;">
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label for="vehicle" class="font-weight-bold">
                                     <i class="fas fa-car mr-1"></i>Автомобил
+                                    <span class="vehicle-mode-badge badge badge-success ml-1" id="vehicle-mode">избран</span>
                                 </label>
-                                <input type="text" class="form-control form-control-sm" 
-                                       id="vehicle" name="vehicle" value="{{ old('vehicle') }}"
-                                       placeholder="Марка и модел...">
+                                <input type="text" class="form-control form-control-sm vehicle-field" 
+                                       id="vehicle" name="vehicle" 
+                                       placeholder="Марка и модел..." 
+                                       data-original-name="vehicle">
                             </div>
                         </div>
-
-                        <!-- Рег. номер -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label for="plate_number" class="font-weight-bold">
                                     <i class="fas fa-tag mr-1"></i>Рег. номер
                                 </label>
-                                <input type="text" class="form-control form-control-sm text-uppercase" 
+                                <input type="text" class="form-control form-control-sm vehicle-field text-uppercase" 
                                        id="plate_number" name="plate_number" 
-                                       value="{{ old('plate_number') }}" placeholder="AB 1234 CD">
+                                       placeholder="AB 1234 CD"
+                                       data-original-name="plate_number">
                             </div>
                         </div>
-
-                        <!-- VIN -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label for="chassis_number" class="font-weight-bold">
                                     <i class="fas fa-barcode mr-1"></i>VIN номер
                                 </label>
-                                <input type="text" class="form-control form-control-sm" 
-                                       id="chassis_number" name="chassis_number" 
-                                       value="{{ old('chassis_number') }}">
+                                <input type="text" class="form-control form-control-sm vehicle-field" 
+                                       id="chassis_number" name="chassis_number"
+                                       placeholder="VIN/Номер на рама"
+                                       data-original-name="chassis_number">
                             </div>
                         </div>
+                    </div>
+
+                    <!-- БУТОН ЗА ДОБАВЯНЕ НА НОВ АВТОМОБИЛ -->
+                    <div class="form-group mt-2" id="add-vehicle-button" style="display: none;">
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="add-new-vehicle-btn">
+                            <i class="fas fa-plus-circle mr-1"></i> Добавете нов автомобил
+                        </button>
+                        <small class="text-muted ml-2">Ако желаният автомобил не е в списъка</small>
                     </div>
 
                     <div class="row mt-2">
@@ -397,6 +438,9 @@
         </td>
     </tr>
 </template>
+
+<!-- Hidden полета за нов автомобил -->
+<input type="hidden" id="is_new_vehicle" name="is_new_vehicle" value="0">
 @stop
 
 @section('css')
@@ -441,7 +485,7 @@
         display: none;
     }
     
-    /* КРИТИЧНО: Оправени стилове за автокомплит */
+    /* Стилове за автокомплит */
     #client-results {
         display: none;
         position: absolute;
@@ -458,7 +502,7 @@
     
     .client-option {
         padding: 10px 15px;
-        cursor: pointer;
+        cursor: pointer !important;
         border-bottom: 1px solid #dee2e6;
         transition: all 0.2s;
     }
@@ -487,14 +531,63 @@
         font-size: 0.85em;
     }
     
-    .form-control:read-only {
-        background-color: #f8f9fa;
-        cursor: not-allowed;
+    /* Поля за display (readonly) */
+    .display-field {
+        background-color: #f8f9fa !important;
+        cursor: text !important;
+        user-select: text !important;
     }
     
-    label {
-        font-size: 0.9rem;
-        margin-bottom: 0.3rem;
+    .display-field:hover {
+        background-color: #e9ecef !important;
+    }
+    
+    /* Select dropdown - ръчичка */
+    .vehicle-select {
+        cursor: pointer !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px 12px;
+        padding-right: 2.5rem !important;
+    }
+    
+    .vehicle-select option {
+        cursor: pointer !important;
+        padding: 8px !important;
+    }
+    
+    /* Стилове за режим на нов автомобил */
+    .vehicle-field {
+        transition: all 0.3s;
+    }
+    
+    .vehicle-field[readonly] {
+        background-color: #f8f9fa !important;
+        border-color: #28a745 !important;
+    }
+    
+    .vehicle-field:not([readonly]) {
+        background-color: white !important;
+        border-color: #ffc107 !important;
+    }
+    
+    /* Бейдж за режим */
+    .vehicle-mode-badge {
+        font-size: 0.7em;
+        vertical-align: middle;
+    }
+    
+    /* Анимации */
+    .btn:hover, .btn-tool:hover {
+        transform: translateY(-1px);
+        transition: transform 0.2s;
+    }
+    
+    /* Стилове за disabled елементи */
+    .form-control:disabled {
+        cursor: not-allowed !important;
+        opacity: 0.6;
     }
 </style>
 @stop
@@ -506,23 +599,24 @@ $(document).ready(function() {
     const SHOW_BGN = {{ $showBgn ? 'true' : 'false' }};
     let itemCounter = 0;
     let searchTimer = null;
+    let isNewVehicleMode = false;
     
-    // Функция за конвертиране ОТ евро КЪМ левове
+    // ============================================================================
+    // ОСНОВНИ ФУНКЦИИ
+    // ============================================================================
+    
     function toBgn(eur) {
         return (eur * BGN_TO_EUR_RATE).toFixed(2).replace('.', ',');
     }
     
-    // Функция за форматиране на число
     function formatNumber(num) {
         return num.toFixed(2).replace('.', ',');
     }
     
-    // Функция за преизчисляване на общите суми
     function updateTotals() {
         let itemsTotal = 0;
         let serviceAmount = parseFloat($('#service_amount').val()) || 0;
         
-        // Сумиране на артикулите
         $('.item-row').each(function() {
             const quantity = parseFloat($(this).find('.item-quantity').val()) || 0;
             const price = parseFloat($(this).find('.item-price').val()) || 0;
@@ -530,15 +624,12 @@ $(document).ready(function() {
             itemsTotal += rowTotal;
         });
         
-        // Общо
         const grandTotal = itemsTotal + serviceAmount;
         
-        // Показване на сумите в евро
         $('#items_total').text(formatNumber(itemsTotal) + ' €');
         $('#service_display').text(formatNumber(serviceAmount) + ' €');
         $('#grand_total').text(formatNumber(grandTotal) + ' €');
         
-        // Показване на сумите в левове (ако трябва)
         if (SHOW_BGN) {
             $('#items_total_bgn').text(toBgn(itemsTotal) + ' лв');
             $('#service_display_bgn').text(toBgn(serviceAmount) + ' лв');
@@ -547,7 +638,6 @@ $(document).ready(function() {
         }
     }
     
-    // Функция за преизчисляване на сумата на ред
     function updateRowTotal(row) {
         const quantity = parseFloat(row.find('.item-quantity').val()) || 0;
         const price = parseFloat(row.find('.item-price').val()) || 0;
@@ -560,7 +650,134 @@ $(document).ready(function() {
         }
     }
     
-    // Търсене на клиенти
+    // ============================================================================
+    // УПРАВЛЕНИЕ НА АВТОМОБИЛИ
+    // ============================================================================
+    
+    function loadCustomerVehicles(customerId) {
+        if (!customerId) {
+            $('#vehicle-selection-group').hide();
+            $('#vehicle-details').hide();
+            return;
+        }
+        
+        $.ajax({
+            url: `/admin/customers/${customerId}/vehicles`,
+            method: 'GET',
+            dataType: 'json',
+            beforeSend: function() {
+                $('#vehicle_id').html('<option value="">Зареждане на автомобили...</option>');
+                $('#vehicle-count').text('(зареждане...)');
+            },
+            success: function(response) {
+                if (response.success && response.vehicles && response.vehicles.length > 0) {
+                    let options = '<option value="">-- Изберете автомобил --</option>';
+                    
+                    response.vehicles.forEach(function(vehicle) {
+                        let displayText = vehicle.vehicle || 'Без модел';
+                        if (vehicle.plate_number) {
+                            displayText += ` (${vehicle.plate_number})`;
+                        }
+                        
+                        options += `<option value="${vehicle.id}" 
+                            data-model="${vehicle.vehicle || ''}"
+                            data-plate="${vehicle.plate_number || ''}"
+                            data-vin="${vehicle.chassis_number || ''}"
+                            data-mileage="${vehicle.last_mileage || ''}">
+                            ${displayText}
+                        </option>`;
+                    });
+                    
+                    $('#vehicle_id').html(options);
+                    $('#vehicle-selection-group').show();
+                    $('#vehicle-count').text(`(${response.vehicles.length} автомобила)`);
+                    $('#add-vehicle-button').show();
+                    
+                } else {
+                    $('#vehicle_id').html('<option value="">Няма регистрирани автомобили</option>');
+                    $('#vehicle-selection-group').show();
+                    $('#vehicle-count').text('(няма автомобили)');
+                    $('#add-vehicle-button').show();
+                }
+            },
+            error: function() {
+                $('#vehicle_id').html('<option value="">Грешка при зареждане</option>');
+                $('#vehicle-count').text('(грешка)');
+                $('#vehicle-selection-group').show();
+                $('#add-vehicle-button').show();
+            }
+        });
+    }
+    
+    function switchToNewVehicleMode() {
+        isNewVehicleMode = true;
+        $('#is_new_vehicle').val('1');
+        
+        // Променяме интерфейса
+        $('#vehicle-selection-group').hide();
+        $('#new-vehicle-group').show();
+        $('#add-vehicle-button').hide();
+        $('#switch-to-new-vehicle').hide();
+        
+        // Променяме полетата за автомобил
+        $('.vehicle-field').prop('readonly', false)
+            .removeClass('display-field')
+            .css('border-color', '#ffc107');
+        
+        $('#vehicle-mode').text('нов').removeClass('badge-success').addClass('badge-warning');
+        $('#vehicle-details').show();
+        
+        // Изчистваме select за автомобили
+        $('#vehicle_id').val('');
+        
+        // Фокус върху първото поле
+        setTimeout(() => $('#vehicle').focus(), 100);
+    }
+    
+    function switchToSelectVehicleMode() {
+        isNewVehicleMode = false;
+        $('#is_new_vehicle').val('0');
+        
+        // Връщаме интерфейса
+        $('#vehicle-selection-group').show();
+        $('#new-vehicle-group').hide();
+        $('#add-vehicle-button').show();
+        
+        // Променяме полетата за автомобил обратно на readonly
+        $('.vehicle-field').prop('readonly', true)
+            .addClass('display-field')
+            .css('border-color', '#28a745');
+        
+        $('#vehicle-mode').text('избран').removeClass('badge-warning').addClass('badge-success');
+        
+        // Изчистваме полетата
+        if (!$('#vehicle_id').val()) {
+            $('#vehicle').val('');
+            $('#plate_number').val('');
+            $('#chassis_number').val('');
+            $('#vehicle-details').hide();
+        }
+    }
+    
+    function checkVehicleExists(vehicle, plateNumber) {
+        let exists = false;
+        $('#vehicle_id option').each(function() {
+            const optionVehicle = $(this).data('model');
+            const optionPlate = $(this).data('plate');
+            
+            if ((optionVehicle && optionVehicle.toLowerCase() === vehicle.toLowerCase()) ||
+                (optionPlate && optionPlate.toLowerCase() === plateNumber.toLowerCase())) {
+                exists = true;
+                return false;
+            }
+        });
+        return exists;
+    }
+    
+    // ============================================================================
+    // ТЪРСЕНЕ И ИЗБОР НА КЛИЕНТ
+    // ============================================================================
+    
     function searchClients(query) {
         if (query.length < 2) {
             $('#client-results').hide();
@@ -574,10 +791,6 @@ $(document).ready(function() {
                 method: 'GET',
                 data: { q: query },
                 dataType: 'json',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
                 success: function(data) {
                     const results = $('#client-results');
                     results.empty();
@@ -597,21 +810,13 @@ $(document).ready(function() {
                             
                             results.append(option);
                         });
-                        
-                        // Показваме резултатите
                         results.show();
-                    } else {
-                        results.hide();
                     }
-                },
-                error: function() {
-                    $('#client-results').hide();
                 }
             });
         }, 300);
     }
     
-    // Избор на клиент
     function selectCustomer(customer) {
         $('#customer_id').val(customer.id);
         $('#client_name').val(customer.name);
@@ -619,27 +824,47 @@ $(document).ready(function() {
         $('#client_search').val(customer.name);
         $('#client-results').hide();
         
-        // Фокус в следващото поле
-        setTimeout(() => $('#vehicle').focus(), 100);
+        // Ресет на автомобилната секция
+        isNewVehicleMode = false;
+        $('#is_new_vehicle').val('0');
+        $('#vehicle_id').val('');
+        $('#vehicle').val('');
+        $('#plate_number').val('');
+        $('#chassis_number').val('');
+        $('#vehicle-details').hide();
+        $('#new-vehicle-group').hide();
+        $('#switch-to-new-vehicle').hide();
+        
+        loadCustomerVehicles(customer.id);
     }
     
-    // Изчистване на избрания клиент
     function clearCustomer() {
         $('#customer_id').val('');
         $('#client_name').val('');
         $('#phone').val('');
         $('#client_search').val('');
-        $('#client_search').focus();
         $('#client-results').hide();
+        
+        $('#vehicle-selection-group').hide();
+        $('#vehicle-details').hide();
+        $('#new-vehicle-group').hide();
+        $('#add-vehicle-button').hide();
+        $('#vehicle_id').html('<option value="">-- Първо изберете клиент --</option>');
+        $('#vehicle').val('');
+        $('#plate_number').val('');
+        $('#chassis_number').val('');
+        $('#vehicle-count').text('');
     }
     
-    // Добавяне на нов артикул
+    // ============================================================================
+    // УПРАВЛЕНИЕ НА АРТИКУЛИТЕ
+    // ============================================================================
+    
     $('#add-item').on('click', function() {
         const template = document.getElementById('item-template');
         const clone = template.content.cloneNode(true);
         itemCounter++;
         
-        // Замяна на INDEX с пореден номер
         $(clone).find('input, select').each(function() {
             this.name = this.name.replace(/INDEX/g, itemCounter);
         });
@@ -649,17 +874,12 @@ $(document).ready(function() {
         $('#items-container').append(clone);
         $('#no-items-message').hide();
         
-        // Инициализиране на събития за новия ред
         const newRow = $('#items-container').find('.item-row').last();
         initRowEvents(newRow);
-        
-        // Фокус върху полето за описание
         newRow.find('.item-name').focus();
-        
         updateTotals();
     });
     
-    // Инициализиране на събития за ред
     function initRowEvents(row) {
         row.find('.item-quantity, .item-price').on('input', function() {
             updateRowTotal(row);
@@ -667,12 +887,10 @@ $(document).ready(function() {
         });
         
         row.find('.remove-item').on('click', function() {
-            if (confirm('Сигурни ли сте, че искате да премахнете този артикул?')) {
+            if (confirm('Премахване на артикула?')) {
                 row.remove();
                 updateItemIndexes();
                 updateTotals();
-                
-                // Ако няма артикули, показваме съобщението
                 if ($('.item-row').length === 0) {
                     $('#no-items-message').show();
                 }
@@ -680,12 +898,9 @@ $(document).ready(function() {
         });
     }
     
-    // Обновяване на номерата на редовете
     function updateItemIndexes() {
         $('.item-row').each(function(index) {
             $(this).find('.item-index').text(index + 1);
-            
-            // Обновяване на имената на полетата с новия индекс
             const newIndex = index + 1;
             $(this).find('input, select').each(function() {
                 const name = this.name;
@@ -696,121 +911,140 @@ $(document).ready(function() {
         itemCounter = $('.item-row').length;
     }
     
-    // Инициализиране при зареждане на страницата
-    function init() {
-        updateTotals();
-        
-        // Добавяме един празен ред по подразбиране
-        $('#add-item').click();
-        
-        // Събития за автокомплит на клиенти
-        $('#client_search').on('input', function() {
-            searchClients($(this).val());
-        });
-        
-        $('#client_search').on('focus', function() {
-            if ($(this).val().length >= 2) {
-                $('#client-results').show();
-            }
-        });
-        
-        // Скриване при клик извън
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('#client_search, #client-results').length) {
-                $('#client-results').hide();
-            }
-        });
-        
-        $('#clear-client').on('click', function(e) {
+    // ============================================================================
+    // СЛУШАТЕЛИ ЗА СЪБИТИЯ
+    // ============================================================================
+    
+    // Клиенти
+    $('#client_search').on('input', function() {
+        searchClients($(this).val());
+    });
+    
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#client_search, #client-results').length) {
+            $('#client-results').hide();
+        }
+    });
+    
+    $('#clear-client').on('click', function(e) {
+        e.preventDefault();
+        clearCustomer();
+    });
+    
+    $('#client_search').on('keydown', function(e) {
+        if (e.key === 'Enter') {
             e.preventDefault();
-            clearCustomer();
-        });
+            const firstOption = $('.client-option:first');
+            if (firstOption.length) firstOption.click();
+        }
+        if (e.key === 'Escape') $('#client-results').hide();
+    });
+    
+    // Автомобили
+    $(document).on('change', '#vehicle_id', function() {
+        const selectedOption = $(this).find('option:selected');
+        const vehicleId = $(this).val();
         
-        // Автоматично избиране на клиент при натискане на Enter
-        $('#client_search').on('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const firstOption = $('.client-option:first');
-                if (firstOption.length) {
-                    firstOption.click();
-                }
+        if (vehicleId) {
+            // Попълваме полетата
+            $('#vehicle').val(selectedOption.data('model') || '');
+            $('#plate_number').val(selectedOption.data('plate') || '');
+            $('#chassis_number').val(selectedOption.data('vin') || '');
+            
+            if (selectedOption.data('mileage')) {
+                $('#mileage').val(selectedOption.data('mileage'));
             }
             
-            if (e.key === 'Escape') {
-                $('#client-results').hide();
-            }
-        });
-        
-        // Събитие за промяна на стойността на труда
-        $('#service_amount').on('input', updateTotals);
-        
-        // Автоматично форматиране на числата
-        $('body').on('blur', 'input[type="number"]', function() {
-            const value = parseFloat($(this).val());
-            if (!isNaN(value)) {
-                $(this).val(value.toFixed(2));
-            }
-        });
-        
-        // Фокус в полето за търсене на клиент
-        setTimeout(() => {
-            $('#client_search').focus();
-        }, 100);
-    }
+            // Променяме интерфейса
+            $('.vehicle-field').prop('readonly', true).addClass('display-field');
+            $('#vehicle-details').show();
+            $('#switch-to-new-vehicle').show();
+            isNewVehicleMode = false;
+            $('#is_new_vehicle').val('0');
+            
+        } else {
+            $('#vehicle-details').hide();
+            $('#switch-to-new-vehicle').hide();
+        }
+    });
     
-    // Валидация на формата преди изпращане
+    // Добавяне на нов автомобил
+    $('#add-new-vehicle-btn, #switch-to-new-vehicle').on('click', function() {
+        switchToNewVehicleMode();
+    });
+    
+    $('#cancel-new-vehicle').on('click', function() {
+        if (confirm('Отказ от добавяне на нов автомобил?')) {
+            switchToSelectVehicleMode();
+        }
+    });
+    
+    // При започване на писане в полета за автомобил
+    $(document).on('focus', '.vehicle-field', function() {
+        if (!isNewVehicleMode && $(this).prop('readonly')) {
+            if (confirm('Искате ли да добавите нов автомобил?')) {
+                switchToNewVehicleMode();
+            }
+        }
+    });
+    
+    $('#refresh-vehicles').on('click', function() {
+        const customerId = $('#customer_id').val();
+        if (customerId) {
+            loadCustomerVehicles(customerId);
+        } else {
+            alert('Първо изберете клиент!');
+        }
+    });
+    
+    // ============================================================================
+    // ВАЛИДАЦИЯ И ИНИЦИАЛИЗАЦИЯ
+    // ============================================================================
+    
     $('#work-order-form').on('submit', function(e) {
         let valid = true;
         const errors = [];
         
-        // Проверка за задължително име на клиент
         if (!$('#client_name').val().trim()) {
-            errors.push('Моля, изберете клиент от списъка!');
-            $('#client_search').focus();
+            errors.push('Изберете клиент!');
             valid = false;
         }
         
-        // Проверка за валидни суми (не отрицателни)
-        $('.item-price, .item-quantity, #service_amount').each(function() {
-            const value = parseFloat($(this).val());
-            if (value < 0) {
-                errors.push('Стойностите не могат да бъдат отрицателни!');
-                $(this).focus();
-                valid = false;
-                return false;
-            }
-        });
+        const vehicle = $('#vehicle').val().trim();
+        const plateNumber = $('#plate_number').val().trim();
         
-        // Проверка за поне един артикул с описание
-        let hasValidItem = false;
-        $('.item-name').each(function() {
-            if ($(this).val().trim()) {
-                hasValidItem = true;
-                return false;
-            }
-        });
-        
-        if (!hasValidItem) {
-            errors.push('Моля, добавете поне един артикул или услуга!');
+        if (!vehicle || !plateNumber) {
+            errors.push('Попълнете автомобил и регистрационен номер!');
+            valid = false;
+        } else if (!isNewVehicleMode && !$('#vehicle_id').val()) {
+            errors.push('Изберете автомобил от списъка или добавете нов!');
             valid = false;
         }
         
         if (!valid) {
             e.preventDefault();
-            let errorMessage = 'Моля, коригирайте следните грешки:\n\n';
-            errors.forEach((error, index) => {
-                errorMessage += `${index + 1}. ${error}\n`;
-            });
-            alert(errorMessage);
+            alert('Моля, коригирайте:\n\n' + errors.join('\n'));
         } else {
-            // Показване на съобщение за успешно запазване
             $(this).find('button[type="submit"]')
                 .html('<i class="fas fa-spinner fa-spin mr-2"></i> Запазване...')
                 .prop('disabled', true);
         }
     });
     
-    // Инициализация
+    function init() {
+        updateTotals();
+        $('#add-item').click();
+        
+        $('#service_amount').on('input', updateTotals);
+        
+        $('body').on('blur', 'input[type="number"]', function() {
+            const value = parseFloat($(this).val());
+            if (!isNaN(value)) $(this).val(value.toFixed(2));
+        });
+        
+        setTimeout(() => $('#client_search').focus(), 100);
+    }
+    
     init();
 });
 </script>

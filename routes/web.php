@@ -63,10 +63,21 @@ Route::middleware(['auth', 'verified'])
         Route::delete('work-orders/{work_order}', [WorkOrderController::class, 'destroy'])
             ->name('work-orders.destroy');
 
+        // ДОБАВЕТЕ ТОЗИ ROUTE СЛЕД ДРУГИТЕ
+        Route::get('/customers/{customer}/vehicles', function (\App\Models\Customer $customer) {
+            // Прост и директен route за тестване
+            return response()->json([
+                'success' => true,
+                'vehicles' => $customer->vehicles()
+                    ->where('is_active', true)
+                    ->orderBy('vehicle')
+                    ->get(['id', 'vehicle', 'plate_number', 'chassis_number', 'last_mileage'])
+            ]);
+        })->name('admin.customers.vehicles');
+        
         // В routes/web.php, след work orders пътищата, добавете:
         Route::get('customers/search', [CustomerController::class, 'search'])
             ->name('customers.search');
-        
     });
 
 require __DIR__ . '/auth.php';
