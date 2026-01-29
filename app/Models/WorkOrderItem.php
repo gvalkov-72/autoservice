@@ -9,23 +9,26 @@ class WorkOrderItem extends Model
 {
     use HasFactory;
 
+    protected $table = 'work_order_items';
+
     protected $fillable = [
         'work_order_id',
-        'description',
+        'work_order_old_id',
+        'row_number',
+        'item_code',
+        'item_name',
+        'item_measure',
         'quantity',
-        'unit_price',
-        'total_price',
+        'price_each',
+        'row_total',
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:2',
-        'unit_price' => 'decimal:2',
-        'total_price' => 'decimal:2',
+        'quantity'   => 'decimal:2',
+        'price_each' => 'decimal:2',
+        'row_total'  => 'decimal:2',
     ];
 
-    /**
-     * Работна поръчка
-     */
     public function workOrder()
     {
         return $this->belongsTo(WorkOrder::class);

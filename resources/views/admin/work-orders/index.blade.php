@@ -81,7 +81,7 @@
                         <th>Автомобил - <small class="text-muted">(рег.№ / VIN)</small></th>
                         <th>Дата</th>
                         <th class="text-right">Общо</th>
-                        <th style="width:90px"></th>
+                        <th style="width:150px" class="text-center">Действия</th>
                     </tr>
                 </thead>
 
@@ -119,11 +119,27 @@
                                     <small class="text-muted">{{ toBgn($wo->total, $rate) }} лв</small>
                                 @endif
                             </td>
-                            <td class="text-right">
-                                <a href="{{ route('admin.work-orders.show', $wo->id) }}"
-                                    class="btn btn-sm btn-outline-primary" title="Преглед">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ route('admin.work-orders.show', $wo->id) }}"
+                                        class="btn btn-outline-primary" title="Преглед">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ route('admin.work-orders.edit', $wo->id) }}"
+                                        class="btn btn-outline-warning" title="Редактиране">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form action="{{ route('admin.work-orders.destroy', $wo->id) }}" 
+                                          method="POST" 
+                                          class="d-inline"
+                                          onsubmit="return confirm('Сигурни ли сте, че искате да изтриете поръчка #{{ $wo->old_id }}?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger" title="Изтриване">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -270,6 +286,15 @@
 
             // Фокус в текстовото поле
             $('input[name="search"]').focus();
+            
+            // Функция за потвърждение на изтриване
+            $(document).on('submit', 'form[method="DELETE"]', function(e) {
+                if (!confirm('Сигурни ли сте, че искате да изтриете тази поръчка?')) {
+                    e.preventDefault();
+                    return false;
+                }
+                return true;
+            });
         });
     </script>
 @stop

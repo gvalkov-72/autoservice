@@ -74,10 +74,13 @@ Route::middleware(['auth', 'verified'])
                     ->get(['id', 'vehicle', 'plate_number', 'chassis_number', 'last_mileage'])
             ]);
         })->name('admin.customers.vehicles');
-        
+
         // В routes/web.php, след work orders пътищата, добавете:
         Route::get('customers/search', [CustomerController::class, 'search'])
             ->name('customers.search');
+
+        Route::get('products/search', [\App\Http\Controllers\Admin\ProductController::class, 'search'])
+            ->name('products.search');
     });
 
 require __DIR__ . '/auth.php';

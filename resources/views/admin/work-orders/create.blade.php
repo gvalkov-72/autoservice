@@ -390,15 +390,29 @@
     <tr class="item-row">
         <td class="align-middle text-center item-index font-weight-bold">1</td>
         <td class="align-middle">
-            <input type="text" class="form-control form-control-sm border-0 item-code" 
-                   name="items[INDEX][item_code]" placeholder="КОД">
+            <!-- Поле за код с автокомплит -->
+            <div class="position-relative">
+                <input type="text" class="form-control form-control-sm border-0 item-code-search" 
+                       placeholder="Въведете код..." autocomplete="off">
+                <input type="hidden" class="item-product-id" name="items[__INDEX__][product_id]">
+                <input type="hidden" class="item-is-new-product" name="items[__INDEX__][is_new_product]" value="0">
+                <input type="text" class="form-control form-control-sm border-0 item-code d-none" 
+                       name="items[__INDEX__][item_code]" placeholder="КОД" readonly>
+                <div class="product-results position-absolute w-100 bg-white border mt-1" style="display:none; z-index:1050; max-height:200px; overflow-y:auto;"></div>
+            </div>
         </td>
         <td class="align-middle">
-            <input type="text" class="form-control form-control-sm border-0 item-name" 
-                   name="items[INDEX][item_name]" placeholder="Въведете описание..." required>
+            <!-- Поле за име с автокомплит -->
+            <div class="position-relative">
+                <input type="text" class="form-control form-control-sm border-0 item-name-search" 
+                       placeholder="Търсене на артикул..." autocomplete="off">
+                <input type="text" class="form-control form-control-sm border-0 item-name d-none" 
+                       name="items[__INDEX__][item_name]" placeholder="Описание..." required readonly>
+                <div class="product-results position-absolute w-100 bg-white border mt-1" style="display:none; z-index:1050; max-height:200px; overflow-y:auto;"></div>
+            </div>
         </td>
         <td class="align-middle">
-            <select class="form-control form-control-sm border-0 item-measure" name="items[INDEX][item_measure]">
+            <select class="form-control form-control-sm border-0 item-measure" name="items[__INDEX__][item_measure]">
                 <option value="бр.">бр.</option>
                 <option value="кг">кг</option>
                 <option value="л">л</option>
@@ -410,13 +424,13 @@
         <td class="align-middle">
             <input type="number" step="0.01" min="0" value="1"
                    class="form-control form-control-sm border-0 text-right item-quantity" 
-                   name="items[INDEX][quantity]">
+                   name="items[__INDEX__][quantity]">
         </td>
         <td class="align-middle">
             <div class="input-group input-group-sm">
                 <input type="number" step="0.01" min="0" value="0"
                        class="form-control border-0 text-right item-price" 
-                       name="items[INDEX][price_each]">
+                       name="items[__INDEX__][price_each]">
                 <div class="input-group-append">
                     <span class="input-group-text bg-transparent">€</span>
                 </div>
@@ -589,6 +603,88 @@
         cursor: not-allowed !important;
         opacity: 0.6;
     }
+    
+    /* Ново: стилове за валидация */
+    .is-invalid {
+        border-color: #dc3545 !important;
+        background-color: #fff5f5 !important;
+    }
+    
+    .item-name:focus {
+        border-color: #80bdff !important;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+    
+    .border-0.is-invalid {
+        border: 1px solid #dc3545 !important;
+    }
+    
+    /* СТИЛОВЕ ЗА АВТОКОМПЛИТ НА АРТИКУЛИ */
+    .product-results {
+        border: 1px solid #007bff;
+        border-radius: 0.25rem;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+        z-index: 1050;
+    }
+    
+    .product-option {
+        cursor: pointer;
+        transition: all 0.2s;
+        padding: 8px 12px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .product-option:last-child {
+        border-bottom: none;
+    }
+    
+    .product-option:hover {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .product-option:hover .badge-light {
+        background-color: #e9ecef !important;
+        color: #495057 !important;
+    }
+    
+    /* Показване/скриване на полета */
+    .d-none {
+        display: none !important;
+    }
+    
+    /* Курсор за редактируеми полета */
+    .item-code:not([readonly]), .item-name:not([readonly]) {
+        cursor: text !important;
+        background-color: #fff !important;
+        border: 1px solid #ffc107 !important;
+    }
+    
+    /* ПРЕМАХВАНЕ НА СТРЕЛКИТЕ В ЧИСЛОВИ ПОЛЕТА */
+    /* Chrome, Safari, Edge, Opera */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    
+    /* Firefox */
+    input[type=number] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+    
+    /* Универсален стил за всички браузъри */
+    input[type="number"] {
+        appearance: textfield;
+        -webkit-appearance: textfield;
+        -moz-appearance: textfield;
+    }
+    
+    /* Допълнителни стилове за числови полета */
+    .form-control[type="number"] {
+        padding-right: 0.75rem !important;
+    }
 </style>
 @stop
 
@@ -599,6 +695,7 @@ $(document).ready(function() {
     const SHOW_BGN = {{ $showBgn ? 'true' : 'false' }};
     let itemCounter = 0;
     let searchTimer = null;
+    let productSearchTimer = null;
     let isNewVehicleMode = false;
     
     // ============================================================================
@@ -648,6 +745,88 @@ $(document).ready(function() {
             row.find('.item-total-bgn').text(toBgn(rowTotal) + ' лв');
             row.find('.item-price-bgn').text(toBgn(price) + ' лв');
         }
+    }
+    
+    // ============================================================================
+    // ТЪРСЕНЕ И ИЗБОР НА КЛИЕНТ
+    // ============================================================================
+    
+    function searchClients(query) {
+        if (query.length < 2) {
+            $('#client-results').hide();
+            return;
+        }
+        
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() {
+            $.ajax({
+                url: "{{ route('admin.customers.search') }}",
+                method: 'GET',
+                data: { q: query },
+                dataType: 'json',
+                success: function(data) {
+                    const results = $('#client-results');
+                    results.empty();
+                    
+                    if (data && data.length > 0) {
+                        data.forEach(function(customer) {
+                            const option = $('<div class="client-option"></div>');
+                            option.html(`
+                                <div class="client-name">${customer.name}</div>
+                                <div class="client-phone">${customer.phone || 'Няма телефон'}</div>
+                            `);
+                            
+                            option.data('customer', customer);
+                            option.on('click', function() {
+                                selectCustomer(customer);
+                            });
+                            
+                            results.append(option);
+                        });
+                        results.show();
+                    }
+                }
+            });
+        }, 300);
+    }
+    
+    function selectCustomer(customer) {
+        $('#customer_id').val(customer.id);
+        $('#client_name').val(customer.name);
+        $('#phone').val(customer.phone || '');
+        $('#client_search').val(customer.name);
+        $('#client-results').hide();
+        
+        // Ресет на автомобилната секция
+        isNewVehicleMode = false;
+        $('#is_new_vehicle').val('0');
+        $('#vehicle_id').val('');
+        $('#vehicle').val('');
+        $('#plate_number').val('');
+        $('#chassis_number').val('');
+        $('#vehicle-details').hide();
+        $('#new-vehicle-group').hide();
+        $('#switch-to-new-vehicle').hide();
+        
+        loadCustomerVehicles(customer.id);
+    }
+    
+    function clearCustomer() {
+        $('#customer_id').val('');
+        $('#client_name').val('');
+        $('#phone').val('');
+        $('#client_search').val('');
+        $('#client-results').hide();
+        
+        $('#vehicle-selection-group').hide();
+        $('#vehicle-details').hide();
+        $('#new-vehicle-group').hide();
+        $('#add-vehicle-button').hide();
+        $('#vehicle_id').html('<option value="">-- Първо изберете клиент --</option>');
+        $('#vehicle').val('');
+        $('#plate_number').val('');
+        $('#chassis_number').val('');
+        $('#vehicle-count').text('');
     }
     
     // ============================================================================
@@ -759,101 +938,100 @@ $(document).ready(function() {
         }
     }
     
-    function checkVehicleExists(vehicle, plateNumber) {
-        let exists = false;
-        $('#vehicle_id option').each(function() {
-            const optionVehicle = $(this).data('model');
-            const optionPlate = $(this).data('plate');
-            
-            if ((optionVehicle && optionVehicle.toLowerCase() === vehicle.toLowerCase()) ||
-                (optionPlate && optionPlate.toLowerCase() === plateNumber.toLowerCase())) {
-                exists = true;
-                return false;
-            }
-        });
-        return exists;
-    }
-    
     // ============================================================================
-    // ТЪРСЕНЕ И ИЗБОР НА КЛИЕНТ
+    // ТЪРСЕНЕ НА АРТИКУЛИ (PRODUCTS) - НОВА ФУНКЦИОНАЛНОСТ
     // ============================================================================
     
-    function searchClients(query) {
+    function searchProducts(query, row, fieldType = 'name') {
         if (query.length < 2) {
-            $('#client-results').hide();
+            row.find('.product-results').hide();
             return;
         }
         
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(function() {
+        clearTimeout(productSearchTimer);
+        productSearchTimer = setTimeout(function() {
             $.ajax({
-                url: "{{ route('admin.customers.search') }}",
+                url: "{{ route('admin.products.search') }}",
                 method: 'GET',
                 data: { q: query },
                 dataType: 'json',
-                success: function(data) {
-                    const results = $('#client-results');
+                success: function(products) {
+                    const results = row.find('.product-results');
                     results.empty();
                     
-                    if (data && data.length > 0) {
-                        data.forEach(function(customer) {
-                            const option = $('<div class="client-option"></div>');
+                    if (products && products.length > 0) {
+                        products.forEach(function(product) {
+                            const option = $('<div class="product-option p-2 border-bottom cursor-pointer"></div>');
                             option.html(`
-                                <div class="client-name">${customer.name}</div>
-                                <div class="client-phone">${customer.phone || 'Няма телефон'}</div>
+                                <div class="font-weight-bold">${product.name}</div>
+                                <div class="small">
+                                    <span class="badge badge-light mr-2">${product.code || 'Без код'}</span>
+                                    <span class="text-muted">${product.uom || 'бр.'} | ${product.price} €</span>
+                                </div>
                             `);
                             
-                            option.data('customer', customer);
+                            option.data('product', product);
                             option.on('click', function() {
-                                selectCustomer(customer);
+                                selectProduct(product, row);
+                                results.hide();
+                            });
+                            
+                            option.on('mouseenter', function() {
+                                $(this).addClass('bg-primary text-white');
+                            }).on('mouseleave', function() {
+                                $(this).removeClass('bg-primary text-white');
                             });
                             
                             results.append(option);
                         });
                         results.show();
+                    } else {
+                        results.hide();
                     }
+                },
+                error: function() {
+                    console.log('Грешка при търсене на артикули');
+                    row.find('.product-results').hide();
                 }
             });
         }, 300);
     }
     
-    function selectCustomer(customer) {
-        $('#customer_id').val(customer.id);
-        $('#client_name').val(customer.name);
-        $('#phone').val(customer.phone || '');
-        $('#client_search').val(customer.name);
-        $('#client-results').hide();
+    function selectProduct(product, row) {
+        // Маркираме, че това е съществуващ продукт
+        row.find('.item-product-id').val(product.id);
+        row.find('.item-is-new-product').val('0');
         
-        // Ресет на автомобилната секция
-        isNewVehicleMode = false;
-        $('#is_new_vehicle').val('0');
-        $('#vehicle_id').val('');
-        $('#vehicle').val('');
-        $('#plate_number').val('');
-        $('#chassis_number').val('');
-        $('#vehicle-details').hide();
-        $('#new-vehicle-group').hide();
-        $('#switch-to-new-vehicle').hide();
+        // Попълваме полетата
+        row.find('.item-code-search').val(product.code || '');
+        row.find('.item-code').val(product.code || '').removeClass('d-none');
+        row.find('.item-name-search').val(product.name);
+        row.find('.item-name').val(product.name).removeClass('d-none');
+        row.find('.item-measure').val(product.uom || 'бр.');
+        row.find('.item-price').val(product.price || 0);
         
-        loadCustomerVehicles(customer.id);
+        // Скриваме полетата за търсене
+        row.find('.item-code-search').addClass('d-none');
+        row.find('.item-name-search').addClass('d-none');
+        
+        // Обновяваме сумата
+        updateRowTotal(row);
+        updateTotals();
     }
     
-    function clearCustomer() {
-        $('#customer_id').val('');
-        $('#client_name').val('');
-        $('#phone').val('');
-        $('#client_search').val('');
-        $('#client-results').hide();
+    function enableManualProductEntry(row) {
+        // Показваме полетата за ръчно въвеждане
+        row.find('.item-code-search').addClass('d-none');
+        row.find('.item-name-search').addClass('d-none');
+        row.find('.item-code').removeClass('d-none').prop('readonly', false);
+        row.find('.item-name').removeClass('d-none').prop('readonly', false);
         
-        $('#vehicle-selection-group').hide();
-        $('#vehicle-details').hide();
-        $('#new-vehicle-group').hide();
-        $('#add-vehicle-button').hide();
-        $('#vehicle_id').html('<option value="">-- Първо изберете клиент --</option>');
-        $('#vehicle').val('');
-        $('#plate_number').val('');
-        $('#chassis_number').val('');
-        $('#vehicle-count').text('');
+        // Маркираме като нов продукт
+        row.find('.item-is-new-product').val('1');
+        row.find('.item-product-id').val('');
+        
+        // Фокус върху полето за име
+        setTimeout(() => row.find('.item-name').focus(), 100);
     }
     
     // ============================================================================
@@ -863,51 +1041,129 @@ $(document).ready(function() {
     $('#add-item').on('click', function() {
         const template = document.getElementById('item-template');
         const clone = template.content.cloneNode(true);
-        itemCounter++;
         
+        // Заменяме __INDEX__ с текущия itemCounter
+        const currentIndex = itemCounter;
         $(clone).find('input, select').each(function() {
-            this.name = this.name.replace(/INDEX/g, itemCounter);
+            if (this.name) {
+                this.name = this.name.replace(/__INDEX__/g, currentIndex);
+            }
         });
         
-        $(clone).find('.item-index').text(itemCounter);
+        // Визуален номер (започва от 1)
+        $(clone).find('.item-index').text(currentIndex + 1);
         
         $('#items-container').append(clone);
         $('#no-items-message').hide();
         
         const newRow = $('#items-container').find('.item-row').last();
         initRowEvents(newRow);
-        newRow.find('.item-name').focus();
+        newRow.find('.item-name-search').focus();
         updateTotals();
+        
+        // Увеличаваме брояча
+        itemCounter++;
     });
     
     function initRowEvents(row) {
+        // Промяна на количество и цена
         row.find('.item-quantity, .item-price').on('input', function() {
             updateRowTotal(row);
             updateTotals();
         });
         
+        // Премахване на артикул
         row.find('.remove-item').on('click', function() {
             if (confirm('Премахване на артикула?')) {
                 row.remove();
-                updateItemIndexes();
+                reindexAllItems();
                 updateTotals();
                 if ($('.item-row').length === 0) {
                     $('#no-items-message').show();
                 }
             }
         });
+        
+        // Автокомплит за код на продукт
+        row.find('.item-code-search').on('input', function() {
+            const query = $(this).val();
+            searchProducts(query, row, 'code');
+        });
+        
+        // Автокомплит за име на продукт
+        row.find('.item-name-search').on('input', function() {
+            const query = $(this).val();
+            searchProducts(query, row, 'name');
+        });
+        
+        // При фокус в полета за търсене - показваме резултати, ако има
+        row.find('.item-code-search, .item-name-search').on('focus', function() {
+            const query = $(this).val();
+            if (query.length >= 2) {
+                searchProducts(query, row);
+            }
+        });
+        
+        // При натискане на Enter в полето за име - позволяваме ръчно въвеждане
+        row.find('.item-name-search').on('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if ($(this).val().trim() !== '') {
+                    enableManualProductEntry(row);
+                }
+            }
+        });
+        
+        // Клас за ръчно въвеждане
+        row.find('.item-code, .item-name').on('dblclick', function() {
+            if (confirm('Искате ли да редактирате този артикул ръчно?')) {
+                enableManualProductEntry(row);
+            }
+        });
+        
+        // При загуба на фокус, ако имаме въведено име, маркираме като нов продукт
+        row.find('.item-name-search').on('blur', function() {
+            const name = $(this).val().trim();
+            if (name !== '' && row.find('.item-product-id').val() === '') {
+                // Ако имаме въведено име, но не сме избрали от списъка
+                setTimeout(() => {
+                    if (row.find('.item-product-id').val() === '') {
+                        enableManualProductEntry(row);
+                        row.find('.item-name').val(name);
+                    }
+                }, 200);
+            }
+        });
+        
+        // Слушател за външен клик за скриване на резултатите
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('.item-code-search, .item-name-search, .product-results').length) {
+                row.find('.product-results').hide();
+            }
+        });
     }
     
-    function updateItemIndexes() {
+    function reindexAllItems() {
         $('.item-row').each(function(index) {
+            // Визуален номер
             $(this).find('.item-index').text(index + 1);
-            const newIndex = index + 1;
+            
+            // Заменяме всички имена на полетата
             $(this).find('input, select').each(function() {
-                const name = this.name;
-                const newName = name.replace(/items\[\d+\]/, `items[${newIndex}]`);
-                this.name = newName;
+                const field = $(this);
+                const oldName = field.attr('name');
+                if (oldName) {
+                    // Намираме текущия индекс в името
+                    const match = oldName.match(/items\[(\d+)\]/);
+                    if (match) {
+                        const newName = oldName.replace(/items\[\d+\]/, `items[${index}]`);
+                        field.attr('name', newName);
+                    }
+                }
             });
         });
+        
+        // Обновяваме брояча
         itemCounter = $('.item-row').length;
     }
     
@@ -1021,27 +1277,65 @@ $(document).ready(function() {
             valid = false;
         }
         
+        // Проверка дали има поне един артикул с попълнено име
+        let hasValidItems = false;
+        $('.item-name').each(function() {
+            if ($(this).val().trim() !== '') {
+                hasValidItems = true;
+            }
+        });
+        
+        if (!hasValidItems && parseFloat($('#service_amount').val()) === 0) {
+            errors.push('Добавете поне един артикул с описание или стойност на труда!');
+            valid = false;
+        }
+        
+        // Проверка за корекни данни в артикули
+        $('.item-row').each(function(index) {
+            const itemName = $(this).find('.item-name').val().trim();
+            const itemQuantity = parseFloat($(this).find('.item-quantity').val()) || 0;
+            
+            if (itemName && itemQuantity === 0) {
+                errors.push(`Артикул "${itemName.substring(0, 30)}..." има количество 0`);
+                $(this).find('.item-quantity').addClass('is-invalid');
+                valid = false;
+            }
+        });
+        
         if (!valid) {
             e.preventDefault();
-            alert('Моля, коригирайте:\n\n' + errors.join('\n'));
-        } else {
-            $(this).find('button[type="submit"]')
-                .html('<i class="fas fa-spinner fa-spin mr-2"></i> Запазване...')
-                .prop('disabled', true);
+            alert('Моля, коригирайте следните грешки:\n\n' + errors.join('\n'));
+            return false;
         }
+        
+        // Показване на индикатор за зареждане
+        $(this).find('button[type="submit"]')
+            .html('<i class="fas fa-spinner fa-spin mr-2"></i> Запазване...')
+            .prop('disabled', true);
     });
+    
+    // ============================================================================
+    // ИНИЦИАЛИЗАЦИЯ
+    // ============================================================================
     
     function init() {
         updateTotals();
+        
+        // Добавяме автоматично първи артикул
         $('#add-item').click();
         
+        // Слушател за стойност на труда
         $('#service_amount').on('input', updateTotals);
         
+        // Форматиране на числата при излизане от полето
         $('body').on('blur', 'input[type="number"]', function() {
             const value = parseFloat($(this).val());
-            if (!isNaN(value)) $(this).val(value.toFixed(2));
+            if (!isNaN(value)) {
+                $(this).val(value.toFixed(2));
+            }
         });
         
+        // Фокус върху търсенето на клиент
         setTimeout(() => $('#client_search').focus(), 100);
     }
     
