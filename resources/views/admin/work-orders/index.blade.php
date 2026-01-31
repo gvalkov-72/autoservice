@@ -42,7 +42,7 @@
                         <span class="mr-2 font-weight-normal" style="font-size: 0.75rem;">Търсене на поръчка:</span>
                         <input type="text" name="search" value="{{ $search ?? '' }}"
                             class="form-control form-control-sm" style="width: 300px;"
-                            placeholder="клиент, кола, рег.№, телефон...">
+                            placeholder="клиент, автомобил, рег.№, VIN, телефон..."> <!-- ПРОМЕНЕН ПЛЕЙСХОЛДЪР -->
                     </div>
                 </div>
 

@@ -53,6 +53,9 @@ Route::middleware(['auth', 'verified'])
         Route::get('work-orders/{work_order}/edit', [WorkOrderController::class, 'edit'])
             ->name('work-orders.edit');
 
+        Route::get('work-orders/{work_order}/print', [WorkOrderController::class, 'print'])
+            ->name('admin.work-orders.print');
+
         // POST/PUT/DELETE пътища
         Route::post('work-orders', [WorkOrderController::class, 'store'])
             ->name('work-orders.store');

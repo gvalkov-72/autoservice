@@ -45,36 +45,95 @@
                 </div>
                 <div class="card-body pt-0">
                     <div class="row">
-                        <!-- Клиент -->
+                        <!-- Клиент - ОБНОВЕНА ЧАСТ -->
                         <div class="col-md-6">
                             <div class="form-group" style="position: relative;">
                                 <label for="client_search" class="font-weight-bold text-primary">
                                     <i class="fas fa-user mr-1"></i>Клиент *
+                                    <span id="client-mode-badge" class="badge badge-success ml-1">търсене</span>
                                 </label>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" class="form-control form-control-lg border-primary" 
-                                           id="client_search" name="client_search" 
-                                           placeholder="Име или телефон..." autocomplete="off">
-                                    <div class="input-group-append">
-                                        <button type="button" class="btn btn-outline-primary" id="clear-client">
-                                            <i class="fas fa-times"></i>
+                                
+                                <!-- КОНТРОЛИ ЗА РЕЖИМ -->
+                                <div class="mb-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm mr-1 active" id="search-mode-btn">
+                                        <i class="fas fa-search"></i> Търсене
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning btn-sm" id="new-customer-mode-btn">
+                                        <i class="fas fa-user-plus"></i> Нов клиент
+                                    </button>
+                                </div>
+                                
+                                <!-- РЕЖИМ ТЪРСЕНЕ (по подразбиране) -->
+                                <div id="search-mode">
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control form-control-lg border-primary" 
+                                               id="client_search" name="client_search" 
+                                               placeholder="Име или телефон..." autocomplete="off">
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-outline-primary" id="clear-client">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="input-group mt-2">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-user-check"></i>
+                                            </span>
+                                        </div>
+                                        <input type="text" class="form-control border-success display-field" 
+                                               id="client_name" name="client_name" 
+                                               value="{{ old('client_name') }}" required readonly>
+                                    </div>
+                                    <div id="client-results" style="display: none; position: absolute; z-index: 1000; width: 100%; max-height: 250px; overflow-y: auto; background: white; border: 1px solid #007bff; border-radius: 0.375rem; box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);"></div>
+                                </div>
+                                
+                                <!-- РЕЖИМ НОВ КЛИЕНТ -->
+                                <div id="new-customer-mode" style="display: none;">
+                                    <div class="alert alert-warning alert-dismissible fade show mb-2" role="alert">
+                                        <button type="button" class="close" data-dismiss="alert">
+                                            <span aria-hidden="true">&times;</span>
                                         </button>
+                                        <h5><i class="fas fa-user-plus mr-1"></i>Добавяне на нов клиент</h5>
+                                        <small>Попълнете данните на новия клиент</small>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="new_customer_name" class="font-weight-bold">
+                                            <i class="fas fa-user mr-1"></i>Име на клиент *
+                                        </label>
+                                        <input type="text" class="form-control form-control-sm" 
+                                               id="new_customer_name" name="new_customer_name" 
+                                               placeholder="Пълно име или фирма..." 
+                                               value="{{ old('new_customer_name') }}">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="new_customer_phone" class="font-weight-bold">
+                                            <i class="fas fa-phone mr-1"></i>Телефон
+                                        </label>
+                                        <input type="text" class="form-control form-control-sm" 
+                                               id="new_customer_phone" name="new_customer_phone" 
+                                               placeholder="Телефон за контакт..." 
+                                               value="{{ old('new_customer_phone') }}">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="new_customer_email" class="font-weight-bold">
+                                            <i class="fas fa-envelope mr-1"></i>Имейл
+                                        </label>
+                                        <input type="email" class="form-control form-control-sm" 
+                                               id="new_customer_email" name="new_customer_email" 
+                                               placeholder="Имейл адрес..." 
+                                               value="{{ old('new_customer_email') }}">
                                     </div>
                                 </div>
+                                
                                 <input type="hidden" id="customer_id" name="customer_id">
-                                <div class="input-group mt-2">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text bg-light">
-                                            <i class="fas fa-user-check"></i>
-                                        </span>
-                                    </div>
-                                    <input type="text" class="form-control border-success display-field" 
-                                           id="client_name" name="client_name" 
-                                           value="{{ old('client_name') }}" required readonly>
-                                </div>
-                                <div id="client-results" style="display: none; position: absolute; z-index: 1000; width: 100%; max-height: 250px; overflow-y: auto; background: white; border: 1px solid #007bff; border-radius: 0.375rem; box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);"></div>
+                                <input type="hidden" id="customer_mode" name="customer_mode" value="search">
+                                
                                 <small class="text-muted mt-1">
-                                    <i class="fas fa-info-circle"></i> Въведете поне 2 символа за търсене
+                                    <i class="fas fa-info-circle"></i> Изберете режим "Търсене" или "Нов клиент"
                                 </small>
                                 @error('client_name')
                                     <small class="text-danger">{{ $message }}</small>
@@ -97,6 +156,7 @@
                                     <input type="text" class="form-control border-info display-field" 
                                            id="phone" name="phone" value="{{ old('phone') }}" readonly>
                                 </div>
+                                <small class="text-muted">Телефонът ще се попълни автоматично при избор на клиент</small>
                             </div>
                         </div>
                     </div>
@@ -685,6 +745,41 @@
     .form-control[type="number"] {
         padding-right: 0.75rem !important;
     }
+    
+    /* Стилове за режими на клиент - НОВИ */
+    #client-mode-badge {
+        font-size: 0.7em;
+        vertical-align: middle;
+    }
+    
+    /* Активни/неактивни бутони */
+    .btn-mode-active {
+        font-weight: bold;
+    }
+    
+    /* Поле за телефон когато не е readonly */
+    #phone:not([readonly]) {
+        background-color: white !important;
+        border-color: #80bdff !important;
+    }
+    
+    /* Алерт за нов клиент */
+    .alert-warning .close {
+        padding: 0.75rem 1.25rem;
+    }
+    
+    /* Стилове за бутони на режими */
+    #search-mode-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    
+    #new-customer-mode-btn.active {
+        background-color: #ffc107;
+        color: #212529;
+        border-color: #ffc107;
+    }
 </style>
 @stop
 
@@ -697,6 +792,7 @@ $(document).ready(function() {
     let searchTimer = null;
     let productSearchTimer = null;
     let isNewVehicleMode = false;
+    let isNewCustomerMode = false;
     
     // ============================================================================
     // ОСНОВНИ ФУНКЦИИ
@@ -745,6 +841,92 @@ $(document).ready(function() {
             row.find('.item-total-bgn').text(toBgn(rowTotal) + ' лв');
             row.find('.item-price-bgn').text(toBgn(price) + ' лв');
         }
+    }
+    
+    // ============================================================================
+    // УПРАВЛЕНИЕ НА РЕЖИМА ЗА КЛИЕНТ - НОВИ ФУНКЦИИ
+    // ============================================================================
+    
+    function switchToSearchMode() {
+        isNewCustomerMode = false;
+        $('#customer_mode').val('search');
+        
+        // Променяме интерфейса
+        $('#search-mode').show();
+        $('#new-customer-mode').hide();
+        
+        // Активни/неактивни бутони
+        $('#search-mode-btn').addClass('active').removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#new-customer-mode-btn').removeClass('active').removeClass('btn-warning').addClass('btn-outline-warning');
+        
+        // Бейдж
+        $('#client-mode-badge').text('търсене').removeClass('badge-warning').addClass('badge-success');
+        
+        // Изчистваме полетата за нов клиент
+        $('#new_customer_name').val('');
+        $('#new_customer_phone').val('');
+        $('#new_customer_email').val('');
+        
+        // Променяме полето за телефон обратно на readonly
+        $('#phone').prop('readonly', true).addClass('display-field');
+        
+        // СКРИВАМЕ СЕКЦИИТЕ ЗА АВТОМОБИЛ (докато не изберем клиент)
+        $('#vehicle-selection-group').hide();
+        $('#new-vehicle-group').hide();
+        $('#vehicle-details').hide();
+        $('#add-vehicle-button').hide();
+        $('#switch-to-new-vehicle').hide();
+        
+        // Изчистваме данните за автомобила
+        $('#vehicle').val('');
+        $('#plate_number').val('');
+        $('#chassis_number').val('');
+        $('#vehicle_id').html('<option value="">-- Първо изберете клиент --</option>');
+        $('#vehicle-count').text('');
+        
+        // Фокус върху търсенето
+        setTimeout(() => $('#client_search').focus(), 100);
+    }
+    
+    function switchToNewCustomerMode() {
+        isNewCustomerMode = true;
+        $('#customer_mode').val('new');
+        
+        // Променяме интерфейса
+        $('#search-mode').hide();
+        $('#new-customer-mode').show();
+        
+        // Активни/неактивни бутони
+        $('#new-customer-mode-btn').addClass('active').removeClass('btn-outline-warning').addClass('btn-warning');
+        $('#search-mode-btn').removeClass('active').removeClass('btn-primary').addClass('btn-outline-primary');
+        
+        // Бейдж
+        $('#client-mode-badge').text('нов').removeClass('badge-success').addClass('badge-warning');
+        
+        // Изчистваме полетата за търсене
+        $('#client_search').val('');
+        $('#client_name').val('');
+        $('#customer_id').val('');
+        $('#client-results').hide();
+        
+        // Променяме полето за телефон да не е readonly
+        $('#phone').prop('readonly', false).removeClass('display-field');
+        
+        // Копиране на стойности от полетата за нов клиент
+        $('#client_name').val($('#new_customer_name').val());
+        $('#phone').val($('#new_customer_phone').val());
+        
+        // АВТОМАТИЧНО ПОКАЗВАНЕ НА СЕКЦИЯТА ЗА НОВ АВТОМОБИЛ
+        // Скриваме секцията за избор на автомобил
+        $('#vehicle-selection-group').hide();
+        $('#add-vehicle-button').hide();
+        $('#vehicle_id').html('<option value="">-- Клиентът е нов --</option>');
+        
+        // Показваме директно секцията за нов автомобил
+        switchToNewVehicleMode();
+        
+        // Фокус върху името на новия клиент
+        setTimeout(() => $('#new_customer_name').focus(), 100);
     }
     
     // ============================================================================
@@ -1171,7 +1353,35 @@ $(document).ready(function() {
     // СЛУШАТЕЛИ ЗА СЪБИТИЯ
     // ============================================================================
     
-    // Клиенти
+    // СЛУШАТЕЛИ ЗА РЕЖИМ НА КЛИЕНТ
+    $('#search-mode-btn').on('click', function() {
+        if (!isNewCustomerMode) return;
+        switchToSearchMode();
+    });
+    
+    $('#new-customer-mode-btn').on('click', function() {
+        if (isNewCustomerMode) return;
+        
+        // Проверка дали има вече избран клиент
+        if ($('#customer_id').val()) {
+            if (!confirm('Превключването към "Нов клиент" ще изчисти текущо избрания клиент. Продължавате ли?')) {
+                return;
+            }
+        }
+        
+        switchToNewCustomerMode();
+    });
+    
+    // Синхронизация на полетата за нов клиент
+    $('#new_customer_name').on('input', function() {
+        $('#client_name').val($(this).val());
+    });
+    
+    $('#new_customer_phone').on('input', function() {
+        $('#phone').val($(this).val());
+    });
+    
+    // Клиенти - автокомплит
     $('#client_search').on('input', function() {
         searchClients($(this).val());
     });
@@ -1261,20 +1471,46 @@ $(document).ready(function() {
         let valid = true;
         const errors = [];
         
-        if (!$('#client_name').val().trim()) {
-            errors.push('Изберете клиент!');
-            valid = false;
-        }
-        
-        const vehicle = $('#vehicle').val().trim();
-        const plateNumber = $('#plate_number').val().trim();
-        
-        if (!vehicle || !plateNumber) {
-            errors.push('Попълнете автомобил и регистрационен номер!');
-            valid = false;
-        } else if (!isNewVehicleMode && !$('#vehicle_id').val()) {
-            errors.push('Изберете автомобил от списъка или добавете нов!');
-            valid = false;
+        // Проверка за клиент
+        if (isNewCustomerMode) {
+            // Режим "Нов клиент" - проверяваме полетата за нов клиент
+            const newCustomerName = $('#new_customer_name').val().trim();
+            if (!newCustomerName) {
+                errors.push('Въведете име на новия клиент!');
+                valid = false;
+            }
+            
+            // Задаваме името в основното поле
+            $('#client_name').val(newCustomerName);
+            
+            // При нов клиент, не проверяваме vehicle_id, защото няма такъв
+            // Вместо това проверяваме директно полетата за автомобил
+            const vehicle = $('#vehicle').val().trim();
+            const plateNumber = $('#plate_number').val().trim();
+            
+            if (!vehicle || !plateNumber) {
+                errors.push('Попълнете автомобил и регистрационен номер!');
+                valid = false;
+            }
+            // Няма проверка за vehicle_id, защото е нов клиент и няма такъв
+            
+        } else {
+            // Режим "Търсене" - проверяваме дали е избран клиент
+            if (!$('#client_name').val().trim()) {
+                errors.push('Изберете клиент!');
+                valid = false;
+            }
+            
+            const vehicle = $('#vehicle').val().trim();
+            const plateNumber = $('#plate_number').val().trim();
+            
+            if (!vehicle || !plateNumber) {
+                errors.push('Попълнете автомобил и регистрационен номер!');
+                valid = false;
+            } else if (!isNewVehicleMode && !$('#vehicle_id').val()) {
+                errors.push('Изберете автомобил от списъка или добавете нов!');
+                valid = false;
+            }
         }
         
         // Проверка дали има поне един артикул с попълнено име
@@ -1334,6 +1570,13 @@ $(document).ready(function() {
                 $(this).val(value.toFixed(2));
             }
         });
+        
+        // СКРИВАНЕ НА ВСИЧКИ СЕКЦИИ ЗА АВТОМОБИЛ ПРИ СТАРТИРАНЕ
+        $('#vehicle-selection-group').hide();
+        $('#new-vehicle-group').hide();
+        $('#vehicle-details').hide();
+        $('#add-vehicle-button').hide();
+        $('#switch-to-new-vehicle').hide();
         
         // Фокус върху търсенето на клиент
         setTimeout(() => $('#client_search').focus(), 100);
