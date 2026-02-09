@@ -19,7 +19,7 @@
 @section('content')
 @php
     $rate = 1.95583;
-    $showBgn = now()->lte('2026-01-31');
+    $showBgn = now()->lte('2026-03-31');
     
     function toBgn($amountEur, $rate = 1.95583, $decimals = 2) {
         return number_format($amountEur * $rate, $decimals, ',', ' ');
@@ -365,7 +365,7 @@
                             <i class="fas fa-info-circle mr-1"></i>
                             Сумите се съхраняват в <strong>евро</strong> в базата данни.
                             @if($showBgn)
-                            <br>Показването в лева е активна до 31.01.2026 г.
+                            <br>Показването в лева е активна до 31.03.2026 г.
                             @endif
                         </small>
                     </div>

@@ -8,6 +8,7 @@ use App\Models\WorkOrderItem;
 use App\Models\Vehicle;
 use App\Models\Product;
 use App\Models\Customer;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class WorkOrderController extends Controller
@@ -24,7 +25,7 @@ class WorkOrderController extends Controller
                     $q->where('client_name', 'like', "%{$search}%")
                         ->orWhere('vehicle', 'like', "%{$search}%")
                         ->orWhere('plate_number', 'like', "%{$search}%")
-                        ->orWhere('chassis_number', 'like', "%{$search}%") // ДОБАВЕНО: ТЪРСЕНЕ ПО VIN
+                        ->orWhere('chassis_number', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
                         ->orWhere('old_id', 'like', "%{$search}%");
                 });
@@ -67,7 +68,7 @@ class WorkOrderController extends Controller
                     $qry->where('client_name', 'like', "{$q}%")
                         ->orWhere('vehicle', 'like', "{$q}%")
                         ->orWhere('plate_number', 'like', "{$q}%")
-                        ->orWhere('chassis_number', 'like', "{$q}%") // ДОБАВЕНО: ТЪРСЕНЕ ПО VIN
+                        ->orWhere('chassis_number', 'like', "{$q}%")
                         ->orWhere('phone', 'like', "{$q}%")
                         ->orWhere('old_id', 'like', "{$q}%");
                 });
@@ -97,7 +98,6 @@ class WorkOrderController extends Controller
 
     public function store(Request $request)
     {
-        // Проста валидация
         $validated = $request->validate([
             'client_name' => 'required|string|max:255',
             'vehicle' => 'required|string|max:255',
@@ -106,13 +106,10 @@ class WorkOrderController extends Controller
             'created_by' => 'nullable|string|max:255',
         ]);
 
-        // РАЗШИРЕНА ОБРАБОТКА НА КЛИЕНТ
         $customerId = $request->input('customer_id');
         $customerMode = $request->input('customer_mode', 'search');
 
-        // Ако сме в режим "нов клиент" или няма customer_id
         if ($customerMode === 'new' || !$customerId) {
-            // Създаване на нов клиент
             $newCustomer = Customer::create([
                 'name' => $request->input('client_name'),
                 'phone' => $request->input('phone'),
@@ -120,30 +117,25 @@ class WorkOrderController extends Controller
                 'is_active' => true,
                 'is_customer' => true,
                 'include_in_mailing' => true,
-                // Генериране на customer_number
                 'customer_number' => $this->generateCustomerNumber(),
             ]);
 
             $customerId = $newCustomer->id;
         }
 
-        // Проверка дали има customer_id
         if (!$customerId) {
             return back()->withErrors(['error' => 'Грешка при обработка на клиента. Моля, опитайте отново.'])
                 ->withInput();
         }
 
-        // ОБРАБОТКА НА АВТОМОБИЛА (съществуващ код)
         $vehicleId = $request->input('vehicle_id');
         $isNewVehicle = $request->input('is_new_vehicle', 0) == '1';
 
-        // Автоматично създаване на нов автомобил ако няма vehicle_id
         if (!$vehicleId && $request->vehicle && $request->plate_number) {
             $isNewVehicle = true;
         }
 
         if ($isNewVehicle) {
-            // Създаване на нов автомобил
             $newVehicle = Vehicle::create([
                 'customer_id' => $customerId,
                 'vehicle' => $request->vehicle,
@@ -155,19 +147,14 @@ class WorkOrderController extends Controller
             ]);
             $vehicleId = $newVehicle->id;
         } elseif (!$vehicleId) {
-            // Ако не е нов автомобил и няма vehicle_id
             return back()->withErrors(['error' => 'Моля, изберете автомобил от списъка.'])
                 ->withInput();
         }
 
-        // Генериране на old_id
         $maxOldId = WorkOrder::max('old_id');
         $nextOldId = ($maxOldId ?: 0) + 1;
-
-        // ВАЖНО: service_amount вече е в евро (от формата), не делиш на курс!
         $serviceAmountEur = $request->service_amount;
 
-        // Подготовка на данните за поръчката
         $workOrderData = [
             'old_id' => $nextOldId,
             'customer_id' => $customerId,
@@ -186,10 +173,7 @@ class WorkOrderController extends Controller
             'total' => 0,
         ];
 
-        // Създаване на поръчката
         $workOrder = WorkOrder::create($workOrderData);
-
-        // Добавяне на артикули
         $itemsTotalEur = 0;
 
         if ($request->has('items')) {
@@ -204,7 +188,6 @@ class WorkOrderController extends Controller
                     $rowTotalEur = $quantity * $priceEachEur;
                     $itemsTotalEur += $rowTotalEur;
 
-                    // Създаваме артикула в поръчката
                     WorkOrderItem::create([
                         'work_order_old_id' => $workOrder->old_id,
                         'work_order_id' => $workOrder->id,
@@ -217,7 +200,6 @@ class WorkOrderController extends Controller
                         'row_total' => $rowTotalEur,
                     ]);
 
-                    // Ако е нов продукт, записваме го в таблицата products
                     if ($isNewProduct == 1 && !empty($itemName)) {
                         try {
                             Product::create([
@@ -236,7 +218,6 @@ class WorkOrderController extends Controller
             }
         }
 
-        // Преизчисляване на общата сума (в евро)
         $workOrder->update([
             'total' => $itemsTotalEur + $serviceAmountEur
         ]);
@@ -245,12 +226,10 @@ class WorkOrderController extends Controller
             ->with('success', 'Поръчката е създадена успешно.');
     }
 
-    // Допълнителна функция за генериране на номер на клиент
     private function generateCustomerNumber()
     {
         $lastCustomer = Customer::orderBy('id', 'desc')->first();
         if ($lastCustomer && $lastCustomer->customer_number) {
-            // Ако има формат като CUST-001, увеличаваме числото
             if (preg_match('/CUST-(\d+)/', $lastCustomer->customer_number, $matches)) {
                 $nextNumber = str_pad((int)$matches[1] + 1, 3, '0', STR_PAD_LEFT);
                 return 'CUST-' . $nextNumber;
@@ -281,7 +260,6 @@ class WorkOrderController extends Controller
 
     public function update(Request $request, WorkOrder $work_order)
     {
-        // Валидация
         $validated = $request->validate([
             'client_name' => 'nullable|string|max:255',
             'vehicle' => 'nullable|string|max:255',
@@ -290,27 +268,22 @@ class WorkOrderController extends Controller
             'service_amount' => 'required|numeric|min:0',
         ]);
 
-        // Обработка на автомобила - ВАЖНА ПРОМЯНА!
         $customerId = $request->input('customer_id');
 
-        // Ако няма customer_id от формата, използвай съществуващия от поръчката
         if (!$customerId && $work_order->customer_id) {
             $customerId = $work_order->customer_id;
         } elseif (!$customerId) {
-            // Ако няма customer_id нито от формата, нито от поръчката
             return back()->withErrors(['error' => 'Моля, изберете клиент.'])->withInput();
         }
 
         $vehicleId = $request->input('vehicle_id');
         $isNewVehicle = $request->input('is_new_vehicle', 0) == '1';
 
-        // Ако няма vehicle_id, но има данни за автомобил, създаваме нов
         if (!$vehicleId && $request->vehicle && $request->plate_number) {
             $isNewVehicle = true;
         }
 
         if ($isNewVehicle) {
-            // Създаване на нов автомобил - ГАРАНТИРАЙ, че customerId не е null!
             if (!$customerId) {
                 return back()->withErrors(['error' => 'Не може да се създаде автомобил без клиент.'])->withInput();
             }
@@ -326,13 +299,11 @@ class WorkOrderController extends Controller
             ]);
             $vehicleId = $newVehicle->id;
         } elseif (!$vehicleId) {
-            // Ако не е нов автомобил и няма vehicle_id, използвай съществуващия
             $vehicleId = $work_order->vehicle_id;
         }
 
-        // Актуализиране на поръчката - ВАЖНО: задай customer_id!
         $work_order->update([
-            'customer_id' => $customerId, // Това гарантира, че customer_id няма да бъде null
+            'customer_id' => $customerId,
             'client_name' => $request->client_name ?? $work_order->client_name,
             'phone' => $request->phone ?? $work_order->phone,
             'vehicle_id' => $vehicleId,
@@ -347,10 +318,7 @@ class WorkOrderController extends Controller
             'chassis_number' => $request->chassis_number ?? $work_order->chassis_number,
         ]);
 
-        // Изтриване на старите артикули
         $work_order->items()->delete();
-
-        // Добавяне на новите артикули
         $itemsTotalEur = 0;
 
         if ($request->has('items')) {
@@ -377,7 +345,6 @@ class WorkOrderController extends Controller
                         'row_total' => $rowTotalEur,
                     ]);
 
-                    // Ако е нов продукт, създаваме го
                     if ($isNewProduct == 1 && !empty($itemName)) {
                         try {
                             Product::create([
@@ -396,7 +363,6 @@ class WorkOrderController extends Controller
             }
         }
 
-        // Преизчисляване на общата сума
         $work_order->update([
             'total' => $itemsTotalEur + $work_order->service_amount
         ]);
@@ -407,13 +373,23 @@ class WorkOrderController extends Controller
 
     public function print(WorkOrder $work_order)
     {
-        // Проверка дали има заредени артикули
         if (!$work_order->relationLoaded('items')) {
             $items = WorkOrderItem::where('work_order_old_id', $work_order->old_id)->get();
             $work_order->setRelation('items', $items);
         }
 
         return view('admin.work-orders.print', compact('work_order'));
+    }
+
+    public function pdf(WorkOrder $work_order)
+    {
+        if (!$work_order->relationLoaded('items')) {
+            $items = WorkOrderItem::where('work_order_old_id', $work_order->old_id)->get();
+            $work_order->setRelation('items', $items);
+        }
+
+        $pdf = Pdf::loadView('admin.work-orders.pdf', compact('work_order'));
+        return $pdf->stream('work-order-' . $work_order->id . '.pdf');
     }
 
     public function destroy(WorkOrder $work_order)

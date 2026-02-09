@@ -54,7 +54,10 @@ Route::middleware(['auth', 'verified'])
             ->name('work-orders.edit');
 
         Route::get('work-orders/{work_order}/print', [WorkOrderController::class, 'print'])
-            ->name('admin.work-orders.print');
+            ->name('work-orders.print');
+
+        Route::get('/work-orders/{work_order}/pdf', [WorkOrderController::class, 'pdf'])
+            ->name('work-orders.pdf');
 
         // POST/PUT/DELETE пътища
         Route::post('work-orders', [WorkOrderController::class, 'store'])
@@ -76,7 +79,7 @@ Route::middleware(['auth', 'verified'])
                     ->orderBy('vehicle')
                     ->get(['id', 'vehicle', 'plate_number', 'chassis_number', 'last_mileage'])
             ]);
-        })->name('admin.customers.vehicles');
+        })->name('customers.vehicles');
 
         // В routes/web.php, след work orders пътищата, добавете:
         Route::get('customers/search', [CustomerController::class, 'search'])

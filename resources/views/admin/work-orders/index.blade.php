@@ -14,7 +14,7 @@
 @section('content')
     @php
         $rate = 1.95583;
-        $showBgn = now()->lte('2026-01-31');
+        $showBgn = now()->lte('2026-03-31');
 
         function toBgn($amountEur, $rate = 1.95583, $decimals = 2)
         {
