@@ -10,24 +10,21 @@ class InvoiceItem extends Model
 
     protected $fillable = [
         'invoice_old_id',
-        'number',
+        'row_number',
         'item_code',
         'item_name',
         'item_measure',
-        'item_qty',
-        'item_price_each',
-        'item_total',
+        'quantity',
+        'price_each',
+        'row_total',
     ];
 
     protected $casts = [
-        'item_qty' => 'float',
-        'item_price_each' => 'float',
-        'item_total' => 'float',
+        'quantity' => 'decimal:2',
+        'price_each' => 'decimal:2',
+        'row_total' => 'decimal:2',
     ];
 
-    /**
-     * Обратна логическа връзка към фактура
-     */
     public function invoice()
     {
         return $this->belongsTo(Invoice::class, 'invoice_old_id', 'old_id');

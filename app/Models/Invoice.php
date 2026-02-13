@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Invoice extends Model
 {
+    use HasFactory;
+
     protected $table = 'invoices';
 
     protected $fillable = [
@@ -16,17 +19,18 @@ class Invoice extends Model
         'invoice_received_date',
         'date_due',
         'invoice_received_person',
+        'invoice_created_by',
         'invoice_rec_responsible',
         'invoice_cre_responsible',
         'note',
+        'zeroexplain',
         'payment_cash',
-        'void',
+        'is_void',
         'printed',
         'paid',
         'tipsdelka',
         'sale_type',
         'pay_method',
-        'zero_explain',
     ];
 
     protected $casts = [
@@ -34,28 +38,15 @@ class Invoice extends Model
         'invoice_received_date' => 'date',
         'date_due' => 'date',
         'payment_cash' => 'boolean',
-        'void' => 'boolean',
+        'is_void' => 'boolean',
         'printed' => 'boolean',
         'paid' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
-     * Логическа връзка с позиции (invoice_items)
-     * invoices.old_id → invoice_items.invoice_old_id
-     */
-    public function items()
-    {
-        return $this->hasMany(
-            InvoiceItem::class,
-            'invoice_old_id', // FK в invoice_items
-            'old_id'          // local key в invoices
-        );
-    }
-
-
-    /**
-     * Логическа връзка с клиент
-     * invoices.customer_old_id → customers.old_id
+     * Връзка с клиент чрез old_id (легаси)
      */
     public function customer()
     {
@@ -63,7 +54,7 @@ class Invoice extends Model
     }
 
     /**
-     * Doctype (без FK)
+     * Връзка с тип документ (doctype)
      */
     public function doctype()
     {
@@ -71,9 +62,17 @@ class Invoice extends Model
     }
 
     /**
-     * Обща сума на фактурата
+     * Артикули по фактурата
      */
-    public function getTotalAttribute(): float
+    public function items()
+    {
+        return $this->hasMany(InvoiceItem::class, 'invoice_old_id', 'old_id');
+    }
+
+    /**
+     * Помощна: обща сума на фактурата
+     */
+    public function getTotalAttribute()
     {
         return $this->items->sum('row_total');
     }

@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <title>Фактура №{{ $invoice->old_id }}</title>
     <style>
-        /* ⚡ СЪЩИЯТ CSS КАТО В print.blade.php ⚡ */
         @page {
             margin: 8mm 8mm 8mm 8mm;
         }
@@ -17,12 +16,14 @@
             font-family: 'DejaVu Sans', Arial, sans-serif;
         }
 
+        /* ОСНОВНА ТАБЛИЦА ЗА МАКЕТ */
         .full-width-table {
             width: 194mm;
             margin-bottom: 2mm;
             border-collapse: collapse;
         }
 
+        /* ТРИКОЛОННА ТАБЛИЦА */
         .three-columns {
             width: 194mm;
             margin-left: 3mm;
@@ -73,6 +74,7 @@
             font-weight: bold;
         }
 
+        /* ИНФОРМАЦИОННИ ТАБЛИЦИ В КОЛОНИТЕ */
         .info-table {
             width: 100%;
             border: none;
@@ -104,6 +106,7 @@
             padding-bottom: 0.15mm;
         }
 
+        /* ТАБЛИЦА С АРТИКУЛИ */
         .items-table-container {
             width: 197.5mm;
             margin-left: 4.5mm;
@@ -141,14 +144,32 @@
             border-bottom: 0.4pt solid #eee;
         }
 
-        .col-1 { width: 3%; }
-        .col-2 { width: 45%; text-align: left; padding-left: 0.8mm !important; }
-        .col-3 { width: 8%; }
-        .col-4 { width: 10%; }
-        .col-5 { width: 12%; }
-        .col-6 { width: 12%; }
-        .col-7 { width: 10%; }
+        /* ШИРИНИ НА КОЛОНИ ЗА АРТИКУЛИ */
+        .col-1 {
+            width: 3%;
+        }
+        .col-2 {
+            width: 45%;
+            text-align: left;
+            padding-left: 0.8mm !important;
+        }
+        .col-3 {
+            width: 8%;
+        }
+        .col-4 {
+            width: 10%;
+        }
+        .col-5 {
+            width: 12%;
+        }
+        .col-6 {
+            width: 12%;
+        }
+        .col-7 {
+            width: 10%;
+        }
 
+        /* ТАБЛИЦА ЗА ПОДАВАНЕ И ОБЩА СУМА */
         .two-columns {
             width: 194mm;
             margin-left: 3mm;
@@ -156,8 +177,16 @@
             margin-bottom: 2mm;
         }
 
-        .two-columns1 { vertical-align: top; width: 70mm; }
-        .two-columns2 { vertical-align: top; width: 90mm; padding-left: 39.5mm; }
+        .two-columns1 {
+            vertical-align: top;
+            width: 70mm;
+        }
+
+        .two-columns2 {
+            vertical-align: top;
+            width: 90mm;
+            padding-left: 39.5mm;
+        }
 
         .info-box,
         .summary-box {
@@ -219,6 +248,7 @@
             margin-top: 0.8mm;
         }
 
+        /* ТАБЛИЦА ЗА ПОДПИСИ */
         .signatures-table {
             width: 194mm;
             margin-top: 6mm;
@@ -250,6 +280,7 @@
             font-weight: bold;
         }
 
+        /* ФУТЪР ЗА НОМЕРАЦИЯ */
         .footer {
             position: fixed;
             bottom: 5mm;
@@ -267,10 +298,12 @@
             content: "Страница " counter(page) " от " counter(pages);
         }
 
+        /* СТИЛОВЕ ЗА ВАЛУТИ */
         .currency {
             font-family: 'Courier New', monospace;
         }
 
+        /* БЕЛЕЖКИ */
         .notes-box {
             border: 0.75pt solid #ccc;
             border-radius: 2px;
@@ -367,11 +400,11 @@
                     @endif
                 </div>
                 <div style="margin-top: 2mm; font-size: 5.5pt;">
-                    Генериран: {{ now()->format('d.m.Y H:i') }}
+                    Принтирана: {{ now()->format('d.m.Y H:i') }}
                 </div>
             </td>
 
-            <!-- ДЯСНА КОЛОНА: ДОСТАВЧИК -->
+            <!-- ДЯСНА КОЛОНА: ДОСТАВЧИК (НАШАТА ФИРМА) -->
             <td class="right-column">
                 <div class="section-title">Доставчик</div>
                 <table class="info-table">
@@ -440,6 +473,7 @@
             <td>
                 <div class="items-table-container">
                     <div class="items-title">Артикули и услуги</div>
+
                     <table class="items-table">
                         <thead>
                             <tr>
@@ -489,6 +523,7 @@
     <!-- ДВА БЛОКА: ДАНЪЧНИ И ОБЩА СУМА -->
     <table class="two-columns no-break">
         <tr>
+            <!-- ЛЯВ БЛОК: ДАНЪЧНИ / БЕЛЕЖКИ -->
             <td class="two-columns1">
                 <div class="info-box">
                     <div class="box-title">Данъчна информация</div>
@@ -531,6 +566,7 @@
                 </div>
             </td>
 
+            <!-- ДЕСЕН БЛОК: ОБОБЩЕНИЕ НА СУМИТЕ -->
             <td class="two-columns2">
                 <div class="summary-box">
                     <div class="box-title">Обобщение на сумите</div>

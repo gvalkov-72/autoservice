@@ -21,4 +21,8 @@ class Doctype extends Model
         'ajurtype',
         'is_active',
     ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
 }

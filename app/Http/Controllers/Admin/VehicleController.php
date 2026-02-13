@@ -5,143 +5,126 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Vehicle;
 use App\Models\Customer;
-use App\Exports\VehicleExport;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class VehicleController extends Controller
 {
-    /* ---------- CRUD ---------- */
-
+    /**
+     * Display a listing of the resource.
+     */
     public function index(Request $request)
     {
-        // Заявка с филтри (може да добавиш филтри по марка, модел и т.н.)
-        $query = Vehicle::with('customer');
-
-        // Пагинация
-        $vehicles = $query->orderBy('plate')->paginate(20);
-
-        return view('admin.vehicles.index', compact('vehicles'));
+        $search = $request->get('search');
+        $customer_id = $request->get('customer_id');
+        
+        $vehicles = Vehicle::with('customer')
+            ->when($search, function ($query, $search) {
+                return $query->where(function ($q) use ($search) {
+                    $q->where('vehicle', 'like', "%{$search}%")
+                      ->orWhere('plate_number', 'like', "%{$search}%")
+                      ->orWhere('chassis_number', 'like', "%{$search}%");
+                });
+            })
+            ->when($customer_id, function ($query, $customer_id) {
+                return $query->where('customer_id', $customer_id);
+            })
+            ->orderBy('plate_number')
+            ->paginate(20);
+            
+        $customers = Customer::where('is_active', true)->orderBy('name')->get();
+        
+        return view('admin.vehicles.index', compact('vehicles', 'customers', 'search', 'customer_id'));
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(Request $request)
     {
-        $customers = Customer::active()->orderBy('name')->get();
-        return view('admin.vehicles.create', compact('customers'));
+        $customer_id = $request->get('customer_id');
+        $customer = null;
+        
+        if ($customer_id) {
+            $customer = Customer::find($customer_id);
+        }
+        
+        $customers = Customer::where('is_active', true)->orderBy('name')->get();
+        
+        return view('admin.vehicles.create', compact('customers', 'customer'));
     }
 
+    /**
+     * Store a newly created resource in storage.
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            // Връзка с клиент
             'customer_id' => 'required|exists:customers,id',
-            
-            // Основни идентификатори
-            'vin' => 'nullable|string|max:50',
-            'chassis' => 'nullable|string|max:50',
-            'plate' => 'required|string|max:20|unique:vehicles,plate',
-            'dk_no' => 'nullable|string|max:50',
-            
-            // Марка и модел
-            'make' => 'required|string|max:100',
-            'model' => 'required|string|max:100',
-            
-            // Допълнителни данни
-            'year' => 'nullable|integer|min:1900|max:' . date('Y'),
-            'mileage' => 'nullable|integer|min:0',
-            'monitor_code' => 'nullable|string|max:50',
-            
-            // Метаданни
-            'order_reference' => 'nullable|string|max:100',
-            'po_date' => 'nullable|date',
-            'author' => 'nullable|string|max:100',
-            
-            // Бележки и статус
+            'vehicle' => 'nullable|string|max:255',
+            'plate_number' => 'required|string|max:255|unique:vehicles,plate_number',
+            'chassis_number' => 'nullable|string|max:255',
+            'last_mileage' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
             'is_active' => 'boolean',
-            
-            // Стари системни данни
-            'old_system_id' => 'nullable|string|max:50',
-            'import_batch' => 'nullable|string|max:100',
         ]);
-
-        // Създаване на превозното средство
+        
+        $validated['is_active'] = $request->has('is_active');
+        
         $vehicle = Vehicle::create($validated);
-
-        // Логване на действие
+        
         activity()
             ->causedBy(Auth::user())
             ->performedOn($vehicle)
-            ->log('Създадено ново превозно средство: ' . $vehicle->plate);
-
+            ->log('Създадено ново превозно средство: ' . $vehicle->plate_number);
+        
         return redirect()
             ->route('admin.vehicles.show', $vehicle)
-            ->with('success', 'Превозното средство "' . $vehicle->plate . '" е създадено успешно.');
+            ->with('success', 'Превозното средство "' . $vehicle->plate_number . '" е създадено успешно.');
     }
 
+    /**
+     * Display the specified resource.
+     */
     public function show(Vehicle $vehicle)
     {
         $vehicle->load(['customer', 'workOrders' => function ($query) {
-            $query->orderBy('received_at', 'desc')->limit(10);
+            $query->orderBy('order_date', 'desc');
         }]);
-
-        // Статистики за това превозно средство
-        $vehicleStats = [
-            'total_work_orders' => $vehicle->workOrders()->count(),
-            'total_spent' => $vehicle->workOrders()->sum('total'),
-            'last_service' => $vehicle->workOrders()->latest()->first()?->received_at,
-            'age_years' => $vehicle->year ? date('Y') - $vehicle->year : null,
-        ];
-
-        return view('admin.vehicles.show', compact('vehicle', 'vehicleStats'));
+        
+        return view('admin.vehicles.show', compact('vehicle'));
     }
 
+    /**
+     * Show the form for editing the specified resource.
+     */
     public function edit(Vehicle $vehicle)
     {
-        $customers = Customer::active()->orderBy('name')->get();
+        $customers = Customer::where('is_active', true)->orderBy('name')->get();
         return view('admin.vehicles.edit', compact('vehicle', 'customers'));
     }
 
+    /**
+     * Update the specified resource in storage.
+     */
     public function update(Request $request, Vehicle $vehicle)
     {
         $validated = $request->validate([
-            // Връзка с клиент
             'customer_id' => 'required|exists:customers,id',
-            
-            // Основни идентификатори
-            'vin' => 'nullable|string|max:50',
-            'chassis' => 'nullable|string|max:50',
-            'plate' => 'required|string|max:20|unique:vehicles,plate,' . $vehicle->id,
-            'dk_no' => 'nullable|string|max:50',
-            
-            // Марка и модел
-            'make' => 'required|string|max:100',
-            'model' => 'required|string|max:100',
-            
-            // Допълнителни данни
-            'year' => 'nullable|integer|min:1900|max:' . date('Y'),
-            'mileage' => 'nullable|integer|min:0',
-            'monitor_code' => 'nullable|string|max:50',
-            
-            // Метаданни
-            'order_reference' => 'nullable|string|max:100',
-            'po_date' => 'nullable|date',
-            'author' => 'nullable|string|max:100',
-            
-            // Бележки и статус
+            'vehicle' => 'nullable|string|max:255',
+            'plate_number' => 'required|string|max:255|unique:vehicles,plate_number,' . $vehicle->id,
+            'chassis_number' => 'nullable|string|max:255',
+            'last_mileage' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
             'is_active' => 'boolean',
         ]);
-
-        // Запазване на старите данни за лог
+        
+        $validated['is_active'] = $request->has('is_active');
+        
         $oldData = $vehicle->toArray();
-
-        // Актуализиране на превозното средство
+        
         $vehicle->update($validated);
-
-        // Логване на промените
+        
         $changes = [];
         foreach ($validated as $key => $value) {
             if (isset($oldData[$key]) && $oldData[$key] != $value) {
@@ -151,84 +134,74 @@ class VehicleController extends Controller
                 ];
             }
         }
-
+        
         if (!empty($changes)) {
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($vehicle)
                 ->withProperties(['changes' => $changes])
-                ->log('Актуализирано превозно средство: ' . $vehicle->plate);
+                ->log('Актуализирано превозно средство: ' . $vehicle->plate_number);
         }
-
+        
         return redirect()
             ->route('admin.vehicles.show', $vehicle)
-            ->with('success', 'Данните на превозното средство "' . $vehicle->plate . '" са актуализирани успешно.');
+            ->with('success', 'Данните на превозното средство "' . $vehicle->plate_number . '" са актуализирани успешно.');
     }
 
+    /**
+     * Remove the specified resource from storage.
+     */
     public function destroy(Vehicle $vehicle)
     {
-        try {
-            $vehiclePlate = $vehicle->plate;
-            $vehicle->delete();
-
-            // Логване на действието
-            activity()
-                ->causedBy(Auth::user())
-                ->performedOn($vehicle)
-                ->log('Деактивирано превозно средство: ' . $vehiclePlate);
-        } catch (\Illuminate\Database\QueryException $e) {
-            return redirect()->route('admin.vehicles.index')
-                ->with('error', 'Не може да изтриете превозното средство, защото има свързани работни поръчки.');
+        if ($vehicle->workOrders()->count() > 0) {
+            return redirect()->back()
+                ->with('error', 'Не можете да изтриете превозно средство, което има свързани работни поръчки!');
         }
-        return redirect()->route('admin.vehicles.index')
-            ->with('success', 'Превозното средство "' . $vehiclePlate . '" е деактивирано успешно.');
-    }
-
-    /* ---------- ДОПЪЛНИТЕЛНИ МЕТОДИ (по избор) ---------- */
-
-    public function restore($id)
-    {
-        $vehicle = Vehicle::withTrashed()->findOrFail($id);
-        $vehicle->restore();
-
+        
+        $vehiclePlate = $vehicle->plate_number;
+        $vehicle->delete();
+        
         activity()
             ->causedBy(Auth::user())
             ->performedOn($vehicle)
-            ->log('Възстановено превозно средство: ' . $vehicle->plate);
-
+            ->log('Изтрито превозно средство: ' . $vehiclePlate);
+        
         return redirect()->route('admin.vehicles.index')
-            ->with('success', 'Превозното средство "' . $vehicle->plate . '" е възстановено успешно.');
+            ->with('success', 'Превозното средство "' . $vehiclePlate . '" е изтрито успешно.');
     }
 
-    /* ---------- EXPORT ---------- */
-
-    public function exportPdf(Vehicle $vehicle)
+    /**
+     * Live search for vehicles (AJAX).
+     */
+    public function search(Request $request)
     {
-        $vehicle->load(['customer', 'workOrders' => function ($query) {
-            $query->orderBy('received_at', 'desc')->limit(10);
-        }]);
-
-        $copy = request()->get('copy', 0);
-
-        return Pdf::loadView('admin.vehicles.export-pdf', compact('vehicle', 'copy'))
-            ->setPaper('a4', 'portrait')
-            ->stream('vehicle_' . $vehicle->id . '_' . $vehicle->plate . '.pdf');
-    }
-
-    public function exportExcel(Vehicle $vehicle)
-    {
-        return Excel::download(
-            new VehicleExport($vehicle),
-            'vehicle_' . $vehicle->id . '_' . $vehicle->plate . '.xlsx'
-        );
-    }
-
-    public function exportCsv(Vehicle $vehicle)
-    {
-        return Excel::download(
-            new VehicleExport($vehicle),
-            'vehicle_' . $vehicle->id . '_' . $vehicle->plate . '.csv',
-            \Maatwebsite\Excel\Excel::CSV
-        );
+        try {
+            $query = trim($request->get('q'));
+            
+            if (strlen($query) < 2) {
+                return response()->json(['html' => '', 'total' => 0]);
+            }
+            
+            $vehicles = Vehicle::with('customer')
+                ->where(function ($qry) use ($query) {
+                    $qry->where('vehicle', 'like', "%{$query}%")
+                        ->orWhere('plate_number', 'like', "%{$query}%")
+                        ->orWhere('chassis_number', 'like', "%{$query}%");
+                })
+                ->where('is_active', true)
+                ->orderBy('plate_number', 'asc')
+                ->limit(50)
+                ->get();
+            
+            $html = view('admin.vehicles.partials.rows', ['vehicles' => $vehicles])->render();
+            
+            return response()->json([
+                'html' => $html,
+                'total' => $vehicles->count()
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }

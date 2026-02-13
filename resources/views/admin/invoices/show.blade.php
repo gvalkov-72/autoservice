@@ -1,290 +1,326 @@
 @extends('adminlte::page')
 
-@section('title', 'Преглед на фактура')
+@section('title', 'Фактура №' . $invoice->old_id)
 
 @section('content_header')
     <div class="d-flex justify-content-between align-items-center">
-        <h1 class="m-0">
-            <i class="fas fa-file-invoice text-primary mr-2"></i>Фактура № {{ $invoice->invoice_number }}
+        <h1>
+            <i class="fas fa-file-invoice mr-2"></i> Фактура №{{ $invoice->old_id }}
+            @if($invoice->is_void)
+                <span class="badge badge-secondary ml-2">Анулирана</span>
+            @elseif($invoice->paid)
+                <span class="badge badge-success ml-2">Платена</span>
+            @else
+                <span class="badge badge-warning ml-2">Неплатена</span>
+            @endif
         </h1>
-        <div class="btn-group">
-            <a href="{{ route('admin.invoices.edit', $invoice) }}" class="btn btn-primary">
-                <i class="fas fa-edit mr-1"></i>Редактирай
+        <div>
+            <a href="{{ route('admin.invoices.print', $invoice->id) }}" class="btn btn-default btn-sm" target="_blank">
+                <i class="fas fa-print"></i> Печат
             </a>
-            <a href="{{ route('admin.invoices.pdf', $invoice) }}" class="btn btn-success" target="_blank">
-                <i class="fas fa-file-pdf mr-1"></i>PDF
+            <a href="{{ route('admin.invoices.pdf', $invoice->id) }}" class="btn btn-danger btn-sm" target="_blank">
+                <i class="fas fa-file-pdf"></i> PDF
             </a>
-            <a href="{{ route('admin.invoices.index') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left mr-1"></i>Назад
+            @if(!$invoice->is_void)
+                <a href="{{ route('admin.invoices.edit', $invoice->id) }}" class="btn btn-warning btn-sm">
+                    <i class="fas fa-edit"></i> Редактиране
+                </a>
+            @endif
+            <a href="{{ route('admin.invoices.index') }}" class="btn btn-default btn-sm ml-2">
+                <i class="fas fa-arrow-left"></i> Назад
             </a>
         </div>
     </div>
 @stop
 
 @section('content')
+    @php
+        $rate = 1.95583;
+        $totalEur = $invoice->total;
+        $totalBgn = $totalEur * $rate;
+    @endphp
+
+    {{-- КАРТА С ОСНОВНА ИНФОРМАЦИЯ --}}
     <div class="row">
-        <div class="col-12">
+        <div class="col-md-6">
             <div class="card card-primary card-outline">
                 <div class="card-header">
-                    <h3 class="card-title">Информация за фактурата</h3>
+                    <h3 class="card-title">
+                        <i class="fas fa-info-circle mr-1"></i> Данни за фактурата
+                    </h3>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card card-light">
-                                <div class="card-header">
-                                    <h3 class="card-title">Данни за клиента</h3>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>Клиент:</strong> {{ $invoice->customer->name ?? 'Няма клиент' }}</p>
-                                    <p><strong>Телефон:</strong> {{ $invoice->customer->phone ?? '-' }}</p>
-                                    <p><strong>Имейл:</strong> {{ $invoice->customer->email ?? '-' }}</p>
-                                    <p><strong>Адрес:</strong> {{ $invoice->customer->address ?? '-' }}</p>
-                                    <p><strong>ЕИК:</strong> {{ $invoice->customer->eik ?? '-' }}</p>
-                                    <p><strong>ДДС №:</strong> {{ $invoice->customer->vat_number ?? '-' }}</p>
-                                </div>
-                            </div>
-                        </div>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th style="width: 140px;">Номер:</th>
+                            <td><strong>{{ $invoice->old_id }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Дата фактура:</th>
+                            <td>{{ $invoice->invoice_date ? $invoice->invoice_date->format('d.m.Y') : '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Падежна дата:</th>
+                            <td>
+                                {{ $invoice->date_due ? $invoice->date_due->format('d.m.Y') : '—' }}
+                                @if($invoice->date_due && $invoice->date_due < now() && !$invoice->paid && !$invoice->is_void)
+                                    <span class="badge badge-danger ml-2">Просрочена</span>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Тип фактура:</th>
+                            <td>
+                                @if($invoice->doctype)
+                                    {{ $invoice->doctype->name }} ({{ $invoice->doctype->short ?? $invoice->doctype->type }})
+                                @else
+                                    —
+                                @endif
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Дата на получаване:</th>
+                            <td>{{ $invoice->invoice_received_date ? $invoice->invoice_received_date->format('d.m.Y') : '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Получил:</th>
+                            <td>{{ $invoice->invoice_received_person ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Създадена от:</th>
+                            <td>{{ $invoice->invoice_created_by ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Отговорник (получаване):</th>
+                            <td>{{ $invoice->invoice_rec_responsible ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Отговорник (създаване):</th>
+                            <td>{{ $invoice->invoice_cre_responsible ?? '—' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-                        <div class="col-md-6">
-                            <div class="card card-light">
-                                <div class="card-header">
-                                    <h3 class="card-title">Данни за фактурата</h3>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>Номер на фактура:</strong> {{ $invoice->invoice_number }}</p>
-                                    <p><strong>Дата на издаване:</strong>
-                                        {{ $invoice->issue_date ? \Carbon\Carbon::parse($invoice->issue_date)->format('d.m.Y') : '-' }}
-                                    </p>
-                                    <p><strong>Дата на падеж:</strong>
-                                        {{ $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y') : '-' }}
-                                    </p>
-                                    <p><strong>Дата на данъчно събитие:</strong>
-                                        {{ $invoice->tax_event_date ? \Carbon\Carbon::parse($invoice->tax_event_date)->format('d.m.Y') : '-' }}
-                                    </p>
-                                    <p><strong>Статус на плащане:</strong>
-                                        <span
-                                            class="badge badge-{{ $invoice->payment_status === 'paid' ? 'success' : 'warning' }}">
-                                            {{ $invoice->payment_status === 'paid' ? 'Платена' : 'Неплатена' }}
-                                        </span>
-                                    </p>
-                                    <p><strong>Статус:</strong>
-                                        <span class="badge badge-{{ $invoice->is_active ? 'success' : 'secondary' }}">
-                                            {{ $invoice->is_active ? 'Активна' : 'Неактивна' }}
-                                        </span>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="card card-light">
-                                <div class="card-header">
-                                    <h3 class="card-title">Финансова информация</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="info-box bg-light">
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text text-center">Общо без ДДС</span>
-                                                    <span
-                                                        class="info-box-number text-center display-6">{{ number_format($invoice->net_total ?? 0, 2) }}
-                                                        лв</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="info-box bg-light">
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text text-center">ДДС
-                                                        ({{ $invoice->vat_rate ?? 0 }}%)</span>
-                                                    <span
-                                                        class="info-box-number text-center display-6">{{ number_format($invoice->vat_amount ?? 0, 2) }}
-                                                        лв</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="info-box bg-success">
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text text-center text-white">Обща сума</span>
-                                                    <span
-                                                        class="info-box-number text-center display-6 text-white">{{ number_format($invoice->grand_total ?? 0, 2) }}
-                                                        лв</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <h4 class="mb-3">
-                        <i class="fas fa-list mr-2"></i>Позиции
-                    </h4>
-
-                    @if ($invoice->items && count($invoice->items) > 0)
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-striped table-hover">
-                                <thead class="thead-dark">
-                                    <tr>
-                                        <th width="40">№</th>
-                                        <th>Описание</th>
-                                        <th width="100">Мярка</th>
-                                        <th width="100">Количество</th>
-                                        <th width="120">Ед. цена</th>
-                                        <th width="100">Отстъпка %</th>
-                                        <th width="120">Отстъпка ст-т</th>
-                                        <th width="120">Стойност</th>
-                                        <th width="80">ДДС %</th>
-                                        <th width="120">ДДС ст-т</th>
-                                        <th width="140">Общо</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @php
-                                        $totalSubtotal = 0;
-                                        $totalVatAmount = 0;
-                                        $totalGrandTotal = 0;
-                                    @endphp
-
-                                    @foreach ($invoice->items as $index => $item)
-                                        @php
-                                            $quantity = $item->quantity ?? 1;
-                                            $unitPrice = $item->unit_price ?? 0;
-                                            $discountPercent = $item->discount_percent ?? 0;
-                                            $discountAmount = $quantity * $unitPrice * ($discountPercent / 100);
-                                            $subtotal = $quantity * $unitPrice - $discountAmount;
-                                            $vatPercent = $item->vat_percent ?? 20;
-                                            $vatAmount = $subtotal * ($vatPercent / 100);
-                                            $totalWithVat = $subtotal + $vatAmount;
-
-                                            $totalSubtotal += $subtotal;
-                                            $totalVatAmount += $vatAmount;
-                                            $totalGrandTotal += $totalWithVat;
-                                        @endphp
-                                        <tr>
-                                            <td class="text-center">{{ $index + 1 }}</td>
-                                            <td>{{ $item->description }}</td>
-                                            <td class="text-center">{{ $item->unit ?? 'бр.' }}</td>
-                                            <td class="text-right">{{ number_format($quantity, 2) }}</td>
-                                            <td class="text-right">{{ number_format($unitPrice, 2) }} лв</td>
-                                            <td class="text-right">{{ number_format($discountPercent, 2) }}%</td>
-                                            <td class="text-right">{{ number_format($discountAmount, 2) }} лв</td>
-                                            <td class="text-right">{{ number_format($subtotal, 2) }} лв</td>
-                                            <td class="text-right">{{ number_format($vatPercent, 2) }}%</td>
-                                            <td class="text-right">{{ number_format($vatAmount, 2) }} лв</td>
-                                            <td class="text-right font-weight-bold">{{ number_format($totalWithVat, 2) }}
-                                                лв</td>
-                                        </tr>
-                                    @endforeach
-
-                                    <tr class="table-success font-weight-bold">
-                                        <td colspan="7" class="text-right">Общо:</td>
-                                        <td class="text-right">{{ number_format($totalSubtotal, 2) }} лв</td>
-                                        <td class="text-right">-</td>
-                                        <td class="text-right">{{ number_format($totalVatAmount, 2) }} лв</td>
-                                        <td class="text-right">{{ number_format($totalGrandTotal, 2) }} лв</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+        <div class="col-md-6">
+            <div class="card card-info card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-user mr-1"></i> Клиент
+                    </h3>
+                </div>
+                <div class="card-body">
+                    @if($invoice->customer)
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <th style="width: 140px;">Име/Фирма:</th>
+                                <td><strong>{!! $invoice->customer->name !!}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Клиентски №:</th>
+                                <td>{{ $invoice->customer->customer_number ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Стар ID:</th>
+                                <td>{{ $invoice->customer->old_id ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Телефон:</th>
+                                <td>{{ $invoice->customer->phone ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <th>E-mail:</th>
+                                <td>{{ $invoice->customer->email ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Адрес:</th>
+                                <td>
+                                    {!! $invoice->customer->address ?? '—' !!}
+                                    @if($invoice->customer->address_2)
+                                        <br>{!! $invoice->customer->address_2 !!}
+                                    @endif
+                                </td>
+                            </tr>
+                            @if($invoice->customer->bulstat)
+                                <tr>
+                                    <th>БУЛСТАТ/ЕИК:</th>
+                                    <td>{{ $invoice->customer->bulstat }}</td>
+                                </tr>
+                            @endif
+                            @if($invoice->customer->tax_number)
+                                <tr>
+                                    <th>ДДС №:</th>
+                                    <td>{{ $invoice->customer->tax_number }}</td>
+                                </tr>
+                            @endif
+                            @if($invoice->customer->mol)
+                                <tr>
+                                    <th>МОЛ:</th>
+                                    <td>{!! $invoice->customer->mol !!}</td>
+                                </tr>
+                            @endif
+                        </table>
                     @else
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>Няма добавени позиции към тази фактура.
-                        </div>
-                    @endif
-
-                    @if ($invoice->notes)
-                        <div class="mt-4">
-                            <h5><i class="fas fa-sticky-note mr-2"></i>Бележки</h5>
-                            <div class="alert alert-info">
-                                {{ $invoice->notes }}
-                            </div>
-                        </div>
+                        <p class="text-muted">Няма информация за клиент</p>
                     @endif
                 </div>
+            </div>
+        </div>
+    </div>
 
-                {{-- PAYMENTS --}}
-                <div class="card card-outline card-success mt-4">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i class="fas fa-money-bill-wave"></i> Плащания по фактурата
-                        </h3>
-                    </div>
+    {{-- ТАБЛИЦА С АРТИКУЛИ --}}
+    <div class="card card-success card-outline">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-boxes mr-1"></i> Артикули и услуги
+            </h3>
+        </div>
+        <div class="card-body p-0">
+            @if($invoice->items->count())
+                <table class="table table-striped table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">№</th>
+                            <th style="width: 15%;">Код</th>
+                            <th style="width: 35%;">Наименование</th>
+                            <th style="width: 8%;">Мярка</th>
+                            <th style="width: 10%;">Количество</th>
+                            <th style="width: 12%;">Ед. цена (€)</th>
+                            <th style="width: 15%;">Сума (€)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($invoice->items as $index => $item)
+                            <tr>
+                                <td>{{ $index + 1 }}</td>
+                                <td>{{ $item->item_code ?? '—' }}</td>
+                                <td>{{ $item->item_name }}</td>
+                                <td>{{ $item->item_measure ?? 'бр.' }}</td>
+                                <td class="text-right">{{ number_format($item->quantity, 2, ',', ' ') }}</td>
+                                <td class="text-right">{{ number_format($item->price_each, 2, ',', ' ') }}</td>
+                                <td class="text-right">{{ number_format($item->row_total, 2, ',', ' ') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="6" class="text-right">Обща сума:</th>
+                            <th class="text-right">{{ number_format($totalEur, 2, ',', ' ') }} €</th>
+                        </tr>
+                        <tr>
+                            <th colspan="6" class="text-right">Обща сума в лева:</th>
+                            <th class="text-right">{{ number_format($totalBgn, 2, ',', ' ') }} лв</th>
+                        </tr>
+                        @if($invoice->tipsdelka > 0)
+                            <tr>
+                                <td colspan="6" class="text-right">Tipsdelka:</td>
+                                <td class="text-right">{{ $invoice->tipsdelka }}</td>
+                            </tr>
+                        @endif
+                    </tfoot>
+                </table>
+            @else
+                <div class="p-3 text-muted">
+                    Няма добавени артикули към фактурата.
+                </div>
+            @endif
+        </div>
+    </div>
 
-                    <div class="card-body p-0">
-                        <table class="table table-striped mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Дата</th>
-                                    <th>Метод</th>
-                                    <th>Банка</th>
-                                    <th class="text-end">Сума</th>
-                                    <th>Референция</th>
-                                    <th class="text-center">Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($invoice->payments as $payment)
-                                    <tr>
-                                        <td>{{ $payment->paid_at->format('d.m.Y') }}</td>
-                                        <td>{{ $payment->method?->name }}</td>
-                                        <td>{{ $payment->bank?->name ?? '—' }}</td>
-                                        <td class="text-end text-success fw-bold">
-                                            {{ number_format($payment->amount, 2, ',', ' ') }} лв.
-                                        </td>
-                                        <td>{{ $payment->reference }}</td>
-                                        <td class="text-center">
-                                            <form method="POST" action="{{ route('admin.payments.destroy', $payment) }}"
-                                                onsubmit="return confirm('Сигурни ли сте, че искате да изтриете това плащане?')">
-                                                @csrf
-                                                @method('DELETE')
+    {{-- ДОПЪЛНИТЕЛНА ИНФОРМАЦИЯ --}}
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card card-secondary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-credit-card mr-1"></i> Плащане
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th style="width: 140px;">Статус:</th>
+                            <td>
+                                @if($invoice->is_void)
+                                    <span class="badge badge-secondary">Анулирана</span>
+                                @elseif($invoice->paid)
+                                    <span class="badge badge-success">Платена</span>
+                                @else
+                                    <span class="badge badge-warning">Неплатена</span>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Метод на плащане:</th>
+                            <td>
+                                @php
+                                    $methods = [0 => 'Банков превод', 1 => 'В брой', 2 => 'Карта'];
+                                @endphp
+                                {{ $methods[$invoice->pay_method] ?? '—' }}
+                                @if($invoice->payment_cash)
+                                    <span class="badge badge-info ml-2">в брой</span>
+                                @endif
+                            </td>
+                        </tr>
+                        @if($invoice->paid)
+                            <tr>
+                                <th>Отпечатана:</th>
+                                <td>{{ $invoice->printed ? 'Да' : 'Не' }}</td>
+                            </tr>
+                        @endif
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card card-secondary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-sticky-note mr-1"></i> Бележки и коментари
+                    </h3>
+                </div>
+                <div class="card-body">
+                    @if($invoice->note)
+                        <div class="mb-2">
+                            <strong>Бележки:</strong>
+                            <p class="mb-0">{!! nl2br(e($invoice->note)) !!}</p>
+                        </div>
+                    @endif
+                    @if($invoice->zeroexplain)
+                        <div>
+                            <strong>Обяснение за нулева ставка:</strong>
+                            <p class="mb-0">{{ $invoice->zeroexplain }}</p>
+                        </div>
+                    @endif
+                    @if(!$invoice->note && !$invoice->zeroexplain)
+                        <p class="text-muted mb-0">Няма въведени бележки.</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
 
-                                                <button class="btn btn-sm btn-danger">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted">
-                                            Няма въведени плащания
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="card-footer text-end">
-                        <strong>Платено:</strong>
-                        {{ number_format($invoice->paid_amount, 2, ',', ' ') }} лв.
-                        &nbsp; | &nbsp;
-                        <strong>Остава:</strong>
-                        {{ number_format($invoice->remaining_amount, 2, ',', ' ') }} лв.
-                    </div>
+    {{-- СИСТЕМНА ИНФОРМАЦИЯ --}}
+    <div class="card card-light card-outline">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-history mr-1"></i> Системна информация
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <small class="text-muted d-block">Създадена на: {{ $invoice->created_at->format('d.m.Y H:i:s') }}</small>
+                    <small class="text-muted d-block">Последна промяна: {{ $invoice->updated_at->format('d.m.Y H:i:s') }}</small>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted d-block">Валутен курс: 1 € = {{ number_format($rate, 5, ',', ' ') }} лв</small>
+                    @if($invoice->sale_type > 0)
+                        <small class="text-muted d-block">Тип продажба: {{ $invoice->sale_type }}</small>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 @stop
-
-@push('css')
-<style>
-    .info-box {
-        border-radius: 8px;
-        padding: 15px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
-    }
-    .info-box:hover { transform: translateY(-5px); }
-</style>
-@endpush

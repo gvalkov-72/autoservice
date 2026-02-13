@@ -4,172 +4,338 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Customer;
+use App\Models\Doctype;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
 {
-
-/**
- * Списък с фактури
- */
-public function index(Request $request)
-{
-    // Основна заявка
-    $query = Invoice::query()
-        ->with('customer')
-        ->whereNull('deleted_at');
-
-    // ТЪРСЕНЕ (започва с)
-    if ($request->filled('search')) {
-        $search = trim($request->search);
-
-        $query->where(function ($q) use ($search) {
-            $q->where('invoice_number', 'like', "{$search}%")
-              ->orWhereHas('customer', function ($qc) use ($search) {
-                  $qc->where('name', 'like', "{$search}%")
-                     ->orWhere('phone', 'like', "{$search}%")
-                     ->orWhere('email', 'like', "{$search}%");
-              });
-        });
-    }
-
-    // ФИЛТЪР ПО АКТИВНОСТ (is_active) - ФИКСИРАНО!
-    if ($request->filled('is_active_filter')) {
-        if ($request->is_active_filter == 'active') {
-            $query->whereNotIn('status', ['voided', 'cancelled']);
-        } elseif ($request->is_active_filter == 'inactive') {
-            $query->whereIn('status', ['voided', 'cancelled']);
-        }
-    }
-
-    // ФИЛТЪР ПО ПЛАЩАНЕ (payment_status) - ФИКСИРАНО!
-    if ($request->filled('payment_filter')) {
-        if ($request->payment_filter == 'paid') {
-            // Платени: само 'paid'
-            $query->where('payment_status', 'paid');
-        } elseif ($request->payment_filter == 'unpaid') {
-            // Неплатени: всичко РАЗЛИЧНО от 'paid'
-            $query->where(function($q) {
-                $q->where('payment_status', '!=', 'paid')
-                  ->orWhereNull('payment_status');
-            });
-        }
-    }
-
-    // Стари филтри за съвместимост
-    if ($request->filled('status')) {
-        $query->where('status', $request->status);
-    }
-
-    if ($request->filled('payment_status')) {
-        $query->where('payment_status', $request->payment_status);
-    }
-
-    $invoices = $query
-        ->orderByDesc('created_at')
-        ->paginate(20);
-
-    // AJAX заявка
-    if ($request->ajax() || $request->has('ajax')) {
-        return view('admin.invoices.partials.table', compact('invoices'));
-    }
-
-    return view('admin.invoices.index', compact('invoices'));
-}
-
     /**
-     * Създаване на фактура
+     * Генериране на следващ номер на фактура (old_id)
      */
+    private function getNextOldId()
+    {
+        $max = Invoice::max('old_id');
+        return $max ? $max + 1 : 1;
+    }
+
+    /* ------------------------------------------------------------------
+       LIST & LIVE SEARCH
+    ------------------------------------------------------------------ */
+
+    public function index(Request $request)
+    {
+        $invoices = Invoice::with(['customer', 'doctype', 'items'])
+            ->when($request->search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('old_id', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($c) use ($search) {
+                            $c->where('name', 'like', "%{$search}%")
+                                ->orWhere('phone', 'like', "%{$search}%")
+                                ->orWhere('customer_number', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($request->date_from, function ($query, $date) {
+                $query->whereDate('invoice_date', '>=', $date);
+            })
+            ->when($request->date_to, function ($query, $date) {
+                $query->whereDate('invoice_date', '<=', $date);
+            })
+            ->when(isset($request->paid), function ($query) use ($request) {
+                $query->where('paid', $request->paid);
+            })
+            ->when(isset($request->is_void), function ($query) use ($request) {
+                $query->where('is_void', $request->is_void);
+            })
+            ->orderBy('invoice_date', 'desc')
+            ->orderBy('old_id', 'desc')
+            ->paginate(15)
+            ->withQueryString();
+
+        if ($request->wantsJson()) {
+            $html = view('admin.invoices.partials.rows', compact('invoices'))->render();
+            return response()->json([
+                'html' => $html,
+                'total' => $invoices->total()
+            ]);
+        }
+
+        $doctypes = Doctype::where('is_active', true)->orderBy('name')->pluck('name', 'type');
+
+        return view('admin.invoices.index', [
+            'invoices' => $invoices,
+            'search' => $request->search,
+            'date_from' => $request->date_from,
+            'date_to' => $request->date_to,
+            'paid' => $request->paid,
+            'is_void' => $request->is_void,
+            'doctypes' => $doctypes,
+        ]);
+    }
+
+    public function liveSearch(Request $request)
+    {
+        $invoices = Invoice::with(['customer', 'doctype'])
+            ->when($request->search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('old_id', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($c) use ($search) {
+                            $c->where('name', 'like', "%{$search}%")
+                                ->orWhere('phone', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($request->date_from, function ($query, $date) {
+                $query->whereDate('invoice_date', '>=', $date);
+            })
+            ->when($request->date_to, function ($query, $date) {
+                $query->whereDate('invoice_date', '<=', $date);
+            })
+            ->when(isset($request->paid), function ($query) use ($request) {
+                $query->where('paid', $request->paid);
+            })
+            ->when(isset($request->is_void), function ($query) use ($request) {
+                $query->where('is_void', $request->is_void);
+            })
+            ->orderBy('invoice_date', 'desc')
+            ->orderBy('old_id', 'desc')
+            ->paginate(15);
+
+        $html = view('admin.invoices.partials.rows', compact('invoices'))->render();
+
+        return response()->json([
+            'html' => $html,
+            'total' => $invoices->total()
+        ]);
+    }
+
+    /* ------------------------------------------------------------------
+       CREATE & STORE
+    ------------------------------------------------------------------ */
+
     public function create()
     {
-        $customers = Customer::orderBy('name')->get();
+        $nextOldId = $this->getNextOldId();
+        $doctypes = Doctype::where('is_active', true)->orderBy('name')->get();
+        $paymentMethods = [0 => 'Банков превод', 1 => 'В брой', 2 => 'Карта']; // според нуждите
 
-        return view('admin.invoices.create', compact('customers'));
+        return view('admin.invoices.create', compact('nextOldId', 'doctypes', 'paymentMethods'));
     }
 
-    /**
-     * Запис на фактура
-     */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'customer_id'     => 'required|exists:customers,id',
-            'invoice_number'  => 'required|string|max:50',
-            'status'          => 'required|string',
-            'payment_status'  => 'required|string',
-            'total'           => 'required|numeric|min:0',
-            'notes'           => 'nullable|string',
+        $validated = $request->validate([
+            'old_id' => 'required|integer|unique:invoices,old_id',
+            'customer_old_id' => 'required|integer|exists:customers,old_id',
+            'invoice_type' => 'required|integer|exists:doctypes,type',
+            'invoice_date' => 'nullable|date',
+            'date_due' => 'nullable|date|after_or_equal:invoice_date',
+            'invoice_received_date' => 'nullable|date',
+            'invoice_received_person' => 'nullable|string|max:255',
+            'invoice_created_by' => 'nullable|string|max:255',
+            'invoice_rec_responsible' => 'nullable|string|max:255',
+            'invoice_cre_responsible' => 'nullable|string|max:255',
+            'note' => 'nullable|string',
+            'zeroexplain' => 'nullable|string',
+            'payment_cash' => 'sometimes|boolean',
+            'is_void' => 'sometimes|boolean',
+            'printed' => 'sometimes|boolean',
+            'paid' => 'sometimes|boolean',
+            'tipsdelka' => 'nullable|integer|min:0|max:255',
+            'sale_type' => 'nullable|integer|min:0|max:255',
+            'pay_method' => 'nullable|integer|min:0|max:255',
+            'items' => 'nullable|array',
+            'items.*.item_code' => 'nullable|string|max:255',
+            'items.*.item_name' => 'required|string|max:255',
+            'items.*.item_measure' => 'nullable|string|max:50',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.price_each' => 'required|numeric|min:0',
         ]);
 
-        Invoice::create($data);
+        // Булеви полета
+        $validated['payment_cash'] = $request->has('payment_cash');
+        $validated['is_void'] = $request->has('is_void');
+        $validated['printed'] = $request->has('printed');
+        $validated['paid'] = $request->has('paid');
 
-        return redirect()
-            ->route('admin.invoices.index')
-            ->with('success', 'Фактурата беше създадена успешно.');
+        DB::beginTransaction();
+        try {
+            $invoice = Invoice::create($validated);
+
+            if ($request->has('items')) {
+                $this->syncItems($invoice, $request->items);
+            }
+
+            DB::commit();
+            return redirect()
+                ->route('admin.invoices.show', $invoice->id)
+                ->with('success', 'Фактура №' . $invoice->old_id . ' е създадена.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Грешка: ' . $e->getMessage());
+        }
     }
 
-    /**
-     * Преглед на фактура
-     */
+    /* ------------------------------------------------------------------
+       SHOW, EDIT, UPDATE, DESTROY
+    ------------------------------------------------------------------ */
+
     public function show(Invoice $invoice)
     {
-        $invoice->load('customer');
-
+        $invoice->load(['customer', 'doctype', 'items']);
         return view('admin.invoices.show', compact('invoice'));
     }
 
-    /**
-     * Редакция на фактура
-     */
     public function edit(Invoice $invoice)
     {
-        $customers = Customer::orderBy('name')->get();
+        $invoice->load('items');
+        $doctypes = Doctype::where('is_active', true)->orderBy('name')->get();
+        $paymentMethods = [0 => 'Банков превод', 1 => 'В брой', 2 => 'Карта'];
 
-        return view('admin.invoices.edit', compact('invoice', 'customers'));
+        return view('admin.invoices.edit', compact('invoice', 'doctypes', 'paymentMethods'));
     }
 
-    /**
-     * Обновяване на фактура
-     */
     public function update(Request $request, Invoice $invoice)
     {
-        $data = $request->validate([
-            'customer_id'     => 'required|exists:customers,id',
-            'invoice_number'  => 'required|string|max:50',
-            'status'          => 'required|string',
-            'payment_status'  => 'required|string',
-            'total'           => 'required|numeric|min:0',
-            'notes'           => 'nullable|string',
+        $validated = $request->validate([
+            'old_id' => 'required|integer|unique:invoices,old_id,' . $invoice->id,
+            'customer_old_id' => 'required|integer|exists:customers,old_id',
+            'invoice_type' => 'required|integer|exists:doctypes,type',
+            'invoice_date' => 'nullable|date',
+            'date_due' => 'nullable|date|after_or_equal:invoice_date',
+            'invoice_received_date' => 'nullable|date',
+            'invoice_received_person' => 'nullable|string|max:255',
+            'invoice_created_by' => 'nullable|string|max:255',
+            'invoice_rec_responsible' => 'nullable|string|max:255',
+            'invoice_cre_responsible' => 'nullable|string|max:255',
+            'note' => 'nullable|string',
+            'zeroexplain' => 'nullable|string',
+            'payment_cash' => 'sometimes|boolean',
+            'is_void' => 'sometimes|boolean',
+            'printed' => 'sometimes|boolean',
+            'paid' => 'sometimes|boolean',
+            'tipsdelka' => 'nullable|integer|min:0|max:255',
+            'sale_type' => 'nullable|integer|min:0|max:255',
+            'pay_method' => 'nullable|integer|min:0|max:255',
+            'items' => 'nullable|array',
+            'items.*.id' => 'nullable|integer|exists:invoice_items,id',
+            'items.*.item_code' => 'nullable|string|max:255',
+            'items.*.item_name' => 'required|string|max:255',
+            'items.*.item_measure' => 'nullable|string|max:50',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.price_each' => 'required|numeric|min:0',
+            'items.*._delete' => 'nullable|string',
         ]);
 
-        $invoice->update($data);
+        $validated['payment_cash'] = $request->has('payment_cash');
+        $validated['is_void'] = $request->has('is_void');
+        $validated['printed'] = $request->has('printed');
+        $validated['paid'] = $request->has('paid');
 
-        return redirect()
-            ->route('admin.invoices.index')
-            ->with('success', 'Фактурата беше обновена успешно.');
+        DB::beginTransaction();
+        try {
+            $invoice->update($validated);
+
+            if ($request->has('items')) {
+                $this->syncItems($invoice, $request->items);
+            }
+
+            DB::commit();
+            return redirect()
+                ->route('admin.invoices.show', $invoice->id)
+                ->with('success', 'Фактура №' . $invoice->old_id . ' е обновена.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Грешка: ' . $e->getMessage());
+        }
     }
 
-    /**
-     * Изтриване (soft delete)
-     */
     public function destroy(Invoice $invoice)
     {
-        $invoice->delete();
+        try {
+            DB::beginTransaction();
+            $invoice->items()->delete();
+            $invoice->delete();
+            DB::commit();
 
-        return redirect()
-            ->route('admin.invoices.index')
-            ->with('success', 'Фактурата беше деактивирана.');
+            return redirect()
+                ->route('admin.invoices.index')
+                ->with('success', 'Фактура №' . $invoice->old_id . ' е изтрита.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Грешка: ' . $e->getMessage());
+        }
     }
 
-    /**
-     * =========================
-     * ЕКСПОРТ В PDF
-     * =========================
-     * Използва InvoicePdfController
-     */
+    /* ------------------------------------------------------------------
+       PRINT & PDF
+    ------------------------------------------------------------------ */
+
+    public function print(Invoice $invoice)
+    {
+        $invoice->load(['customer', 'doctype', 'items']);
+        return view('admin.invoices.print', compact('invoice'));
+    }
+
     public function pdf(Invoice $invoice)
     {
-        return app(InvoicePdfController::class)->show($invoice);
+        $invoice->load(['customer', 'doctype', 'items']);
+        $pdf = Pdf::loadView('admin.invoices.pdf', compact('invoice'));
+        return $pdf->stream('factura-' . $invoice->old_id . '.pdf');
+    }
+
+    /* ------------------------------------------------------------------
+       ПОМОЩНИ МЕТОДИ
+    ------------------------------------------------------------------ */
+
+    private function syncItems(Invoice $invoice, array $itemRows)
+    {
+        $submittedIds = [];
+
+        foreach ($itemRows as $row) {
+            if (empty($row['item_name'])) {
+                continue;
+            }
+
+            $data = [
+                'invoice_old_id' => $invoice->old_id,
+                'row_number' => $row['row_number'] ?? null,
+                'item_code' => $row['item_code'] ?? null,
+                'item_name' => $row['item_name'],
+                'item_measure' => $row['item_measure'] ?? null,
+                'quantity' => $row['quantity'],
+                'price_each' => $row['price_each'],
+                'row_total' => $row['quantity'] * $row['price_each'],
+            ];
+
+            if (!empty($row['id'])) {
+                $item = InvoiceItem::where('id', $row['id'])
+                    ->where('invoice_old_id', $invoice->old_id)
+                    ->first();
+
+                if ($item) {
+                    if (!empty($row['_delete'])) {
+                        $item->delete();
+                        continue;
+                    }
+                    $item->update($data);
+                    $submittedIds[] = $item->id;
+                }
+            } else {
+                if (empty($row['_delete'])) {
+                    $item = $invoice->items()->create($data);
+                    $submittedIds[] = $item->id;
+                }
+            }
+        }
+
+        // Изтриване на неподадени (маркирани чрез липса)
+        if (!empty($submittedIds)) {
+            $invoice->items()->whereNotIn('id', $submittedIds)->delete();
+        }
     }
 }
