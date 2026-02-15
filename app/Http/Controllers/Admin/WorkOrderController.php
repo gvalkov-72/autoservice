@@ -8,6 +8,9 @@ use App\Models\WorkOrderItem;
 use App\Models\Vehicle;
 use App\Models\Product;
 use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -369,6 +372,94 @@ class WorkOrderController extends Controller
 
         return redirect()->route('admin.work-orders.show', $work_order)
             ->with('success', 'Поръчката е обновена успешно.');
+    }
+
+    public function createInvoice(WorkOrder $work_order)
+    {
+        // Задължително зареждаме клиента
+        $work_order->load('customer');
+
+        // Проверка дали поръчката има клиент
+        if (!$work_order->customer_id) {
+            return back()->with('error', 'Работната поръчка няма обвързан клиент.');
+        }
+
+        // Проверка дали клиентът съществува (не е изтрит)
+        if (!$work_order->customer) {
+            return back()->with('error', 'Клиентът не съществува (вероятно е изтрит).');
+        }
+
+        // ⚡ НОВА ПРОВЕРКА: Дали вече има фактура за тази поръчка?
+        if ($work_order->invoices()->exists()) {
+            return back()->with('error', 'За тази работна поръчка вече има създадена фактура.');
+        }
+
+        // Генериране на следващ номер на фактура
+        $nextOldId = Invoice::max('old_id') + 1;
+        $createdBy = $work_order->created_by ?? 'Система';
+
+        // Подготовка на данни за фактурата
+        $invoiceData = [
+            'old_id'                 => $nextOldId,
+            'customer_id'            => $work_order->customer_id,
+            'customer_old_id'        => $work_order->customer->old_id,
+            'work_order_id'          => $work_order->id,           // ⚡ добавяме това
+            'invoice_type'           => 1,
+            'invoice_date'           => now()->toDateString(),
+            'date_due'               => now()->addDays(14)->toDateString(),
+            'invoice_created_by'     => $createdBy,
+            'note'                   => 'Създадена от работна поръчка №' . $work_order->old_id,
+            'payment_cash'           => false,
+            'is_void'                => false,
+            'printed'                => false,
+            'paid'                   => false,
+            'tipsdelka'              => 0,
+            'sale_type'              => 0,
+            'pay_method'             => 0,
+        ];
+
+        DB::beginTransaction();
+        try {
+            $invoice = Invoice::create($invoiceData);
+
+            // Пренасяне на артикулите
+            $items = WorkOrderItem::where('work_order_old_id', $work_order->old_id)->get();
+            foreach ($items as $index => $item) {
+                InvoiceItem::create([
+                    'invoice_old_id' => $invoice->old_id,
+                    'row_number'     => $index + 1,
+                    'item_code'      => $item->item_code,
+                    'item_name'      => $item->item_name,
+                    'item_measure'   => $item->item_measure,
+                    'quantity'       => $item->quantity,
+                    'price_each'     => $item->price_each,
+                    'row_total'      => $item->row_total,
+                ]);
+            }
+
+            // Труд
+            if ($work_order->service_amount > 0) {
+                InvoiceItem::create([
+                    'invoice_old_id' => $invoice->old_id,
+                    'row_number'     => $items->count() + 1,
+                    'item_code'      => 'SERVICE',
+                    'item_name'      => 'Труд (ремонтни дейности)',
+                    'item_measure'   => 'усл.',
+                    'quantity'       => 1,
+                    'price_each'     => $work_order->service_amount,
+                    'row_total'      => $work_order->service_amount,
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('admin.invoices.edit', $invoice->id)
+                ->with('success', 'Фактура №' . $invoice->old_id . ' е създадена.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Грешка: ' . $e->getMessage());
+        }
     }
 
     public function print(WorkOrder $work_order)

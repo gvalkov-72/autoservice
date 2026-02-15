@@ -13,6 +13,7 @@ class WorkOrder extends Model
 
     protected $fillable = [
         'old_id',
+        'customer_id',           // ⚡ ДОБАВЕНО (за връзка с клиент)
         'client_name',
         'order_date',
         'created_by',
@@ -32,11 +33,32 @@ class WorkOrder extends Model
     ];
 
     /**
-     * Редове (POitems)
+     * Връзка с клиента (Laravel ID)
      */
-    public function items()
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    /**
+     * Редове (WorkOrderItem)
+     */
+    public function items(): HasMany
     {
         return $this->hasMany(WorkOrderItem::class, 'work_order_old_id', 'old_id');
+    }
+
+    /**
+     * Връзка с МПС (ако има)
+     */
+    public function vehicle(): BelongsTo
+    {
+        return $this->belongsTo(Vehicle::class);
+    }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class, 'work_order_id');
     }
 
     /**
@@ -46,10 +68,5 @@ class WorkOrder extends Model
     {
         return (float) $this->service_amount
             + (float) $this->items()->sum('row_total');
-    }
-
-    public function vehicle(): BelongsTo
-    {
-        return $this->belongsTo(Vehicle::class);
     }
 }

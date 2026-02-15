@@ -49,6 +49,8 @@ Route::middleware(['auth', 'verified'])
         Route::post('work-orders', [WorkOrderController::class, 'store'])->name('work-orders.store');
         Route::put('work-orders/{work_order}', [WorkOrderController::class, 'update'])->name('work-orders.update');
         Route::delete('work-orders/{work_order}', [WorkOrderController::class, 'destroy'])->name('work-orders.destroy');
+        Route::post('work-orders/{work_order}/create-invoice', [WorkOrderController::class, 'createInvoice'])
+            ->name('work-orders.create-invoice');
 
         // МПС-та на клиент (за работни поръчки)
         Route::get('/customers/{customer}/vehicles', function (\App\Models\Customer $customer) {

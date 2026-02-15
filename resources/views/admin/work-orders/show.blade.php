@@ -18,6 +18,13 @@
             <a href="{{ route('admin.work-orders.edit', $work_order->id) }}" class="btn btn-warning btn-sm mr-2">
                 <i class="fas fa-edit mr-1"></i> Редактирай
             </a>
+            <form action="{{ route('admin.work-orders.create-invoice', $work_order->id) }}" method="POST" class="d-inline">
+                @csrf
+                <button type="submit" class="btn btn-success btn-sm"
+                    onclick="return confirm('Създаване на фактура от работна поръчка №{{ $work_order->old_id }}? Тя ще бъде създадена с клиент и артикули от поръчката.');">
+                    <i class="fas fa-file-invoice"></i> Създай фактура
+                </button>
+            </form>
             <a href="{{ route('admin.work-orders.index') }}" class="btn btn-secondary btn-sm">
                 <i class="fas fa-arrow-left mr-1"></i> Назад
             </a>
@@ -202,6 +209,24 @@
 
             <!-- Странична панел -->
             <div class="col-lg-4">
+                @if($work_order->invoices->count())
+                <div class="card card-outline card-success">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-file-invoice"></i>
+                            За тази поръчка е създадена фактура:
+                        </h3>
+                    </div>
+                    <div class="alert alert-info">
+                        @foreach ($work_order->invoices as $invoice)
+                            <a href="{{ route('admin.invoices.show', $invoice->id) }}">№{{ $invoice->old_id }}</a>
+                            @if (!$loop->last)
+                                ,
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+                @endif
                 <!-- Финансово обобщение -->
                 <div class="card card-outline card-success">
                     <div class="card-header">

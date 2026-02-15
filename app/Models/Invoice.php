@@ -13,6 +13,8 @@ class Invoice extends Model
 
     protected $fillable = [
         'old_id',
+        'customer_id',
+        'work_order_id',
         'customer_old_id',
         'invoice_type',
         'invoice_date',
@@ -46,9 +48,17 @@ class Invoice extends Model
     ];
 
     /**
-     * Връзка с клиент чрез old_id (легаси)
+     * Връзка с клиент чрез новото customer_id
      */
     public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    /**
+     * Стара връзка чрез old_id (ако все още трябва)
+     */
+    public function customerByOldId()
     {
         return $this->belongsTo(Customer::class, 'customer_old_id', 'old_id');
     }
@@ -67,6 +77,11 @@ class Invoice extends Model
     public function items()
     {
         return $this->hasMany(InvoiceItem::class, 'invoice_old_id', 'old_id');
+    }
+
+    public function workOrder()
+    {
+        return $this->belongsTo(WorkOrder::class, 'work_order_id');
     }
 
     /**

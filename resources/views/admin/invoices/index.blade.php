@@ -77,6 +77,7 @@
                         <th style="width:70px;">№</th>
                         <th>Дата</th>
                         <th>Клиент</th>
+                        <th>Работна поръчка</th>
                         <th>Тип</th>
                         <th>Падеж</th>
                         <th class="text-right">Сума (€)</th>
